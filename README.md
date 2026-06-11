@@ -57,32 +57,115 @@ The server listens on port `3000` by default. Set `PORT=XXXX` to change it.
 | `PORT` | `3000` | Port for the production server |
 | `HOST` | `0.0.0.0` | Host to bind to |
 
-## Deployment (Nginx reverse proxy)
+## Deployment
 
-1. Build and start the server (e.g., via `systemd` or `pm2`):
-   ```bash
-   npm run build
-   DATABASE_PATH=/var/data/divvyup.db PORT=3000 node build/index.js
-   ```
+> **Note:** `better-sqlite3` includes native C++ bindings compiled at `npm ci` time. Always run `npm ci` and `npm run build` on the target server — do not copy `node_modules` across architectures (e.g. from an x86 CI runner to an ARM server).
 
-2. Add an Nginx site config:
-   ```nginx
-   server {
-       listen 80;
-       server_name divvyup.yourdomain.com;
+### systemd service
 
-       location / {
-           proxy_pass http://127.0.0.1:3000;
-           proxy_http_version 1.1;
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-           proxy_set_header X-Forwarded-Proto $scheme;
-       }
-   }
-   ```
+Create `/etc/systemd/system/divvy-up.service`:
 
-3. Add HTTPS via Certbot/Let's Encrypt.
+```ini
+[Unit]
+Description=DivvyUp
+After=network.target
+
+[Service]
+User=YOUR_USER
+WorkingDirectory=/home/YOUR_USER/divvy-up
+ExecStart=/usr/bin/node /home/YOUR_USER/divvy-up/build/index.js
+Restart=always
+RestartSec=5
+
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOST=127.0.0.1
+Environment=DATABASE_PATH=/home/YOUR_USER/divvy-up/divvyup.db
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now divvy-up
+```
+
+### Nginx
+
+Create `/etc/nginx/sites-available/divvy-up`:
+
+```nginx
+server {
+    listen 80;
+    server_name divvy.yourdomain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+```bash
+sudo ln -s /etc/nginx/sites-available/divvy-up /etc/nginx/sites-enabled/divvy-up
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Add HTTPS via Certbot:
+
+```bash
+sudo certbot --nginx -d divvy.yourdomain.com
+```
+
+### Automated deploys via GitHub Actions
+
+Add a `.github/workflows/deploy.yml` to deploy on every push to `main`:
+
+```yaml
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd ~/divvy-up
+            git pull
+            npm ci --omit=dev
+            npm run build
+            sudo systemctl restart divvy-up
+```
+
+Add these secrets in GitHub → Settings → Secrets and variables → Actions:
+
+| Secret | Value |
+|---|---|
+| `SSH_HOST` | Server IP or hostname |
+| `SSH_USER` | Linux username on the server |
+| `SSH_KEY` | Private SSH key (full contents, passphrase-free) |
+
+To allow the deploy user to restart the service without a password:
+```bash
+echo "YOUR_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart divvy-up" | sudo tee /etc/sudoers.d/divvy-up
+```
 
 ## How It Works
 
