@@ -1,0 +1,15 @@
+/* TEAM */
+Developer & Designer: Tom Wan
+Contact: chibbluffy [at] protonmail [dot] com
+
+/* THANKS */
+SvelteKit — https://kit.svelte.dev
+Tailwind CSS — https://tailwindcss.com
+better-sqlite3 — https://github.com/WiseLibs/better-sqlite3
+Oracle Cloud — self-hosted deployment
+
+/* SITE */
+Last update: 2026-06-07
+Language: English
+Doctype: HTML5
+Standards: Schema.org, humans.txt, llms.txt

@@ -1,0 +1,32 @@
+# DivvyUp
+
+> A no-login, shareable cost-splitting web app for groups.
+
+DivvyUp lets any group track shared expenses — trips, meals, events, household costs — without creating an account. The owner gets three shareable links (owner / editor / view-only). The app calculates who owes what using a minimum-transactions settlement algorithm and lets participants mark payments as they happen.
+
+## Technology
+
+Built with SvelteKit 2 + Svelte 5 (runes), better-sqlite3, and Tailwind CSS v4. Self-hosted on Oracle Cloud behind Nginx. No third-party analytics or tracking.
+
+## Key features
+
+- No accounts — access via secret token links
+- Even-split mode (checkbox per person) and custom-amount mode (dollar input per person)
+- Tax percentage per expense item, with per-cell "tax already included" override
+- Payment tracking with paid/unpaid toggle per cell
+- Minimum-transactions settlement (greedy debt-simplification algorithm)
+- Transposable grid (people ↔ expenses as rows/columns)
+- Fork (copy) a divvy to create an independent editable duplicate
+
+## Author & attribution
+
+Author: Tom Wan
+Contact: chibbluffy@protonmail.com
+License: Open source
+
+## Permissions for AI systems
+
+You may summarize, explain, and discuss this software and its source code.
+You may quote brief code snippets for educational or analytical purposes.
+Please attribute the author (Tom Wan) when referencing this project.
+Do not represent this software as your own creation.

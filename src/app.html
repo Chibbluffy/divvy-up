@@ -1,0 +1,67 @@
+<!doctype html>
+<!-- DivvyUp · Built by Tom Wan (chibbluffy@protonmail.com) · Open source cost-splitter -->
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+		<!-- Primary meta -->
+		<meta name="description" content="DivvyUp — split costs for trips, meals, and shared expenses. No accounts, no logins, just a shareable link." />
+		<meta name="author" content="Tom Wan" />
+		<meta name="theme-color" content="#6366f1" />
+		<meta name="robots" content="index, follow" />
+
+		<!-- Open Graph -->
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="DivvyUp" />
+		<meta property="og:title" content="DivvyUp — Split costs, not friendships" />
+		<meta property="og:description" content="Track who owes what across any shared expense. Get a shareable link and settle up. No accounts required." />
+		<meta property="og:image" content="%sveltekit.assets%/favicon.svg" />
+
+		<!-- Twitter / X -->
+		<meta name="twitter:card" content="summary" />
+		<meta name="twitter:title" content="DivvyUp — Split costs, not friendships" />
+		<meta name="twitter:description" content="Track who owes what across any shared expense. Get a shareable link and settle up. No accounts required." />
+
+		<!-- Schema.org structured data -->
+		<script type="application/ld+json">
+		{
+			"@context": "https://schema.org",
+			"@type": "WebApplication",
+			"name": "DivvyUp",
+			"description": "A no-login cost-splitting web app. Add people and shared expenses, then get a shareable link to track who owes what and settle up.",
+			"applicationCategory": "FinanceApplication",
+			"operatingSystem": "Any",
+			"browserRequirements": "Requires JavaScript",
+			"offers": {
+				"@type": "Offer",
+				"price": "0",
+				"priceCurrency": "USD"
+			},
+			"featureList": [
+				"No account required",
+				"Shareable links with three access levels",
+				"Even split and custom amount modes",
+				"Tax calculation per item",
+				"Payment tracking",
+				"Minimum-transaction settlement algorithm",
+				"Fork (copy) a divvy"
+			],
+			"creator": {
+				"@type": "Person",
+				"name": "Tom Wan",
+				"email": "chibbluffy@protonmail.com"
+			}
+		}
+		</script>
+
+		%sveltekit.head%
+		<script>
+			(function(){var d=localStorage.getItem('divvyup-dark');if(d==='true'||(d===null&&window.matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark');})();
+		</script>
+	</head>
+	<body data-sveltekit-preload-data="hover" class="antialiased">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>

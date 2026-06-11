@@ -1,0 +1,10 @@
+node_modules/
+build/
+.svelte-kit/
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.*
+!.env.example
+dist/
