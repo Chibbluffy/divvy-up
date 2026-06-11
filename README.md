@@ -2,6 +2,8 @@
 
 A clean, minimal cost-splitter web app for trips, meals, and shared expenses. No accounts, no logins — just a shareable link.
 
+**Live demo:** [divvy.chibbluffy.fyi](https://divvy.chibbluffy.fyi)
+
 ## Features
 
 - **Flexible split types** — even split (check who's included) or custom amounts per person
