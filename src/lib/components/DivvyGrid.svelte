@@ -194,6 +194,16 @@
 
 	const tableWidth = $derived(rowLabelW + colItems.length * COL_W + TOTAL_W);
 
+	// Per-event share amounts for payment mode display (even_split events need this since they have no custom_amount)
+	const eventShares = $derived(
+		Object.fromEntries(
+			visibleEvents.map(ev => [
+				ev.id,
+				calculateEventShare(ev, intersections.filter(i => i.event_id === ev.id))
+			])
+		)
+	);
+
 	// Select-all helpers — only even_split events have checkboxes worth bulk-toggling
 	function rowIsEvenSplitRelevant(rowItem: Person | Event): boolean {
 		if (!transpose) return (rowItem as Event).type === 'even_split';
@@ -492,6 +502,7 @@
 									{ix}
 									{mode}
 									{canEdit}
+									shareAmount={eventShares[ev.id]?.[person.id] ?? 0}
 									onTogglePresence={() => onTogglePresence(ev.id, person.id)}
 									onUpdateAmount={(amount, taxIncluded) => onUpdateAmount(ev.id, person.id, amount, taxIncluded)}
 									onTogglePaid={() => onTogglePaid(ev.id, person.id)}

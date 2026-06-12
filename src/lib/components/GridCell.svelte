@@ -5,10 +5,12 @@
 
 	let {
 		event, person, ix, mode, canEdit,
+		shareAmount,
 		onTogglePresence, onUpdateAmount, onTogglePaid
 	}: {
 		event: Event; person: Person; ix: Intersection | undefined;
 		mode: 'edit' | 'payment'; canEdit: boolean;
+		shareAmount: number;
 		onTogglePresence: () => void;
 		onUpdateAmount: (amount: number | null, taxIncluded: boolean) => void;
 		onTogglePaid: () => void;
@@ -104,7 +106,7 @@
 			{#if isPayer}
 				<!-- Payer's own share: they already paid, show neutral indicator -->
 				<div class="flex flex-col items-center gap-0.5">
-					<span class="text-xs font-semibold text-indigo-700 leading-none">{formatCurrency(finalAmount)}</span>
+					<span class="text-xs font-semibold text-indigo-700 leading-none">{formatCurrency(shareAmount)}</span>
 					<span class="text-[9px] font-semibold text-indigo-500">★ payer</span>
 				</div>
 			{:else}
@@ -113,7 +115,7 @@
 					onclick={onTogglePaid}
 					class="flex flex-col items-center gap-0.5 px-0.5 py-0.5 rounded {canEdit ? 'cursor-pointer hover:opacity-75' : 'cursor-default'}"
 				>
-					<span class="text-xs font-semibold text-gray-700 dark:text-gray-300 leading-none">{formatCurrency(finalAmount)}</span>
+					<span class="text-xs font-semibold text-gray-700 dark:text-gray-300 leading-none">{formatCurrency(shareAmount)}</span>
 					<span class="text-[9px] font-semibold {paidStatus === 'paid' ? 'text-emerald-600' : 'text-amber-600'}">{paidStatus === 'paid' ? '✓ paid' : '○ due'}</span>
 				</button>
 			{/if}
