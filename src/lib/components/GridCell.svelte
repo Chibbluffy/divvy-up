@@ -104,9 +104,8 @@
 			</button>
 		{:else if present}
 			{#if isPayer}
-				<!-- Payer's own share: they already paid, show neutral indicator -->
+				<!-- Payer's own share is covered by fronting the bill — show no amount owed -->
 				<div class="flex flex-col items-center gap-0.5">
-					<span class="text-xs font-semibold text-indigo-700 leading-none">{formatCurrency(shareAmount)}</span>
 					<span class="text-[9px] font-semibold text-indigo-500">★ payer</span>
 				</div>
 			{:else}
@@ -147,7 +146,6 @@
 		{:else if customAmount !== null}
 			{#if isPayer}
 				<div class="flex flex-col items-center gap-0.5">
-					<span class="text-xs font-semibold text-indigo-700 leading-none">{formatCurrency(finalAmount)}</span>
 					<span class="text-[9px] font-semibold text-indigo-500">★ payer</span>
 				</div>
 			{:else}

@@ -53,6 +53,7 @@
 
 	function getPersonGroupShare(personId: string, group: EventGroup): number {
 		return group.children.reduce((s, ev) => {
+			if (ev.payer_person_id === personId) return s; // payer's own share is covered by fronting the bill
 			const shares = calculateEventShare(ev, intersections);
 			return s + (shares[personId] ?? 0);
 		}, 0);
