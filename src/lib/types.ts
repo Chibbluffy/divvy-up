@@ -3,7 +3,7 @@ export type AccessLevel = 'owner' | 'edit' | 'view';
 
 export type EventType = 'even_split' | 'custom_amount';
 
-export type PaidStatus = 'unpaid' | 'paid';
+export type MarkStatus = 'unmarked' | 'marked';
 
 export interface Divvy {
 	id: string;
@@ -45,7 +45,8 @@ export interface Intersection {
 	present: boolean;
 	custom_amount: number | null;
 	tax_included: boolean;
-	paid_status: PaidStatus;
+	mark: MarkStatus;
+	note: string | null;
 }
 
 export interface Settlement {

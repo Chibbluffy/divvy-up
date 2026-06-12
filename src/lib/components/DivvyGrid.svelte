@@ -9,7 +9,7 @@
 		visiblePeople, visibleEvents, accessLevel,
 		onEditPerson, onDeletePerson, onEditEvent, onDeleteEvent,
 		onDuplicateEvent, onTogglePresence, onUpdateAmount, onTogglePaid,
-		onMarkAllPaid, onSplitRemaining, onSetAllRow, onSetAllCol
+		onMarkAllPaid, onMarkAllPaidEvent, onUpdateNote, onSplitRemaining, onSetAllRow, onSetAllCol
 	}: {
 		people: Person[]; events: Event[]; intersections: Intersection[];
 		mode: 'edit' | 'payment'; transpose: boolean;
@@ -23,7 +23,9 @@
 		onTogglePresence: (eventId: string, personId: string) => void;
 		onUpdateAmount: (eventId: string, personId: string, amount: number | null, taxIncluded: boolean) => void;
 		onTogglePaid: (eventId: string, personId: string) => void;
-		onMarkAllPaid: (personId: string) => void;
+		onMarkAllPaid: (personId: string, marked: boolean) => void;
+		onMarkAllPaidEvent: (eventId: string, marked: boolean) => void;
+		onUpdateNote: (eventId: string, personId: string, note: string | null) => void;
 		onSplitRemaining: (eventId: string) => void;
 		onSetAllRow: (item: Person | Event, present: boolean) => void;
 		onSetAllCol: (item: Person | Event, present: boolean) => void;
@@ -227,6 +229,15 @@
 			intersections.find(i => i.event_id === ev.id && i.person_id === person.id)?.present ?? false
 		);
 	}
+	function personColAllMarked(personId: string): boolean {
+		const relevant = intersections.filter(i => i.person_id === personId);
+		return relevant.length > 0 && relevant.every(i => i.mark === 'marked');
+	}
+	function eventRowAllMarked(eventId: string): boolean {
+		const relevant = intersections.filter(i => i.event_id === eventId);
+		return relevant.length > 0 && relevant.every(i => i.mark === 'marked');
+	}
+
 	function colAllPresent(colItem: Person | Event): boolean {
 		if (transpose) {
 			const ev = colItem as Event;
@@ -318,14 +329,20 @@
 						{#each colItems as colItem}
 							<th class="border-r border-gray-100 dark:border-gray-700 p-1 text-center">
 								{#if mode === 'payment' && canEdit}
-									<!-- Mark all paid button for this column -->
-									{@const personId = transpose ? null : (colItem as Person).id}
-									{#if personId}
+									{#if !transpose}
+										{@const allMarked = personColAllMarked((colItem as Person).id)}
 										<button
-											onclick={() => onMarkAllPaid(personId!)}
-											class="text-xs px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 hover:bg-emerald-200 dark:hover:bg-emerald-900 text-emerald-700 dark:text-emerald-400 font-medium transition-colors whitespace-nowrap"
-											title="Mark all paid for {colLabel(colItem)}"
-										>✓ all</button>
+											onclick={() => onMarkAllPaid((colItem as Person).id, !allMarked)}
+											class="text-xs px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-200 font-medium transition-colors whitespace-nowrap"
+											title="{allMarked ? 'Unmark all' : 'Mark all'} for {colLabel(colItem)}"
+										>{allMarked ? '☐ all' : '✓ all'}</button>
+									{:else}
+										{@const allMarked = eventRowAllMarked((colItem as Event).id)}
+										<button
+											onclick={() => onMarkAllPaidEvent((colItem as Event).id, !allMarked)}
+											class="text-xs px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-200 font-medium transition-colors whitespace-nowrap"
+											title="{allMarked ? 'Unmark all' : 'Mark all'} for {colLabel(colItem)}"
+										>{allMarked ? '☐ all' : '✓ all'}</button>
 									{/if}
 								{:else if isOwner}
 									<div class="flex flex-col items-center gap-1">
@@ -415,8 +432,8 @@
 										<span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: {rowColor(rowItem)};"></span>
 									{/if}
 									<span class="font-semibold text-gray-800 dark:text-gray-200 truncate text-xs flex-1 min-w-0" title={rowLabel(rowItem)}>{rowLabel(rowItem)}</span>
-									<!-- Hover-only destructive actions -->
-									{#if isOwner}
+									<!-- Hover-only destructive actions (edit mode only) -->
+									{#if isOwner && mode === 'edit'}
 										<div class="absolute right-0 top-1/2 -translate-y-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-gray-900 pl-1">
 											<button
 												onclick={() => { if (transpose) onEditPerson(rowItem as Person); else onEditEvent(rowItem as Event); }}
@@ -469,7 +486,7 @@
 								{#if !transpose && hasRemaining(rowItem) && mode === 'edit' && canEdit}
 									<button
 										onclick={() => onSplitRemaining((rowItem as Event).id)}
-										class="ml-4 mt-0.5 text-left text-xs font-medium text-indigo-500 hover:text-indigo-700 hover:underline transition-colors"
+										class="ml-4 mt-0.5 text-left text-xs font-medium text-indigo-600 dark:text-indigo-300 hover:text-indigo-800 dark:hover:text-indigo-100 hover:underline transition-colors"
 									>÷ Split remaining equally</button>
 								{/if}
 								<!-- Select all in this row -->
@@ -480,12 +497,21 @@
 										class="ml-4 mt-0.5 text-left text-xs font-medium text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-indigo-100 hover:underline transition-colors"
 									>{allPresent ? '☐ Deselect all' : '☑ Select all'}</button>
 								{/if}
-								<!-- Mark all paid for this person row (transposed payment mode) -->
+								<!-- Toggle all for this person row (transposed payment mode) -->
 								{#if transpose && mode === 'payment' && canEdit}
+									{@const allMarked = personColAllMarked((rowItem as Person).id)}
 									<button
-										onclick={() => onMarkAllPaid((rowItem as Person).id)}
-										class="ml-4 mt-0.5 text-left text-xs font-medium text-emerald-600 hover:text-emerald-800 hover:underline transition-colors"
-									>✓ Mark all paid</button>
+										onclick={() => onMarkAllPaid((rowItem as Person).id, !allMarked)}
+										class="ml-4 mt-0.5 text-left text-xs font-medium text-indigo-600 dark:text-indigo-300 hover:text-indigo-800 dark:hover:text-indigo-100 hover:underline transition-colors"
+									>{allMarked ? '☐ Unmark all' : '✓ Mark all'}</button>
+								{/if}
+								<!-- Toggle all for this event row (default payment mode) -->
+								{#if !transpose && mode === 'payment' && canEdit && !isPerson(rowItem)}
+									{@const allMarked = eventRowAllMarked((rowItem as Event).id)}
+									<button
+										onclick={() => onMarkAllPaidEvent((rowItem as Event).id, !allMarked)}
+										class="ml-4 mt-0.5 text-left text-xs font-medium text-indigo-600 dark:text-indigo-300 hover:text-indigo-800 dark:hover:text-indigo-100 hover:underline transition-colors"
+									>{allMarked ? '☐ Unmark all' : '✓ Mark all'}</button>
 								{/if}
 							</div>
 						</td>
@@ -506,6 +532,7 @@
 									onTogglePresence={() => onTogglePresence(ev.id, person.id)}
 									onUpdateAmount={(amount, taxIncluded) => onUpdateAmount(ev.id, person.id, amount, taxIncluded)}
 									onTogglePaid={() => onTogglePaid(ev.id, person.id)}
+									onUpdateNote={(note) => onUpdateNote(ev.id, person.id, note)}
 								/>
 							</td>
 						{/each}

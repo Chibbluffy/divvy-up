@@ -2,7 +2,7 @@
 import Database from 'better-sqlite3';
 import { join, dirname } from 'node:path';
 import { mkdirSync } from 'node:fs';
-import type { Divvy, Person, Event, Intersection, Payment, AccessLevel } from '$lib/types';
+import type { Divvy, Person, Event, Intersection, Payment, AccessLevel, MarkStatus } from '$lib/types';
 
 const DB_PATH = process.env.DATABASE_PATH ?? join(process.cwd(), 'divvyup.db');
 
@@ -77,10 +77,17 @@ function initSchema(db: Database.Database) {
       present INTEGER NOT NULL DEFAULT 0,
       custom_amount REAL,
       tax_included INTEGER NOT NULL DEFAULT 0,
-      paid_status TEXT NOT NULL DEFAULT 'unpaid' CHECK (paid_status IN ('unpaid', 'paid')),
+      mark TEXT NOT NULL DEFAULT 'unmarked' CHECK (mark IN ('unmarked', 'marked')),
+      note TEXT,
       UNIQUE(event_id, person_id)
     )
   `);
+	// Migrate existing databases: rename paid_status → mark
+	try { db.exec(`ALTER TABLE intersections ADD COLUMN mark TEXT NOT NULL DEFAULT 'unmarked' CHECK (mark IN ('unmarked', 'marked'))`); } catch {}
+	try { db.exec(`UPDATE intersections SET mark = 'marked' WHERE paid_status = 'paid' AND mark = 'unmarked'`); } catch {}
+	try { db.exec(`ALTER TABLE intersections DROP COLUMN paid_status`); } catch {}
+	// Migrate: add note column
+	try { db.exec(`ALTER TABLE intersections ADD COLUMN note TEXT`); } catch {}
 }
 
 // --- Divvies ---
@@ -146,7 +153,7 @@ export function createPerson(
 	// Create placeholder intersections for all existing events
 	const events = getEvents(divvyId);
 	for (const event of events) {
-		upsertIntersection(generateId(), event.id, id, false, null, false, 'unpaid');
+		upsertIntersection(generateId(), event.id, id, false, null, false, 'unmarked');
 	}
 
 	return getDb().prepare('SELECT * FROM people WHERE id = ?').get(id) as Person;
@@ -200,7 +207,7 @@ export function createEvent(
 	// Create placeholder intersections for all existing people
 	const people = getPeople(divvyId);
 	for (const person of people) {
-		upsertIntersection(generateId(), id, person.id, false, null, false, 'unpaid');
+		upsertIntersection(generateId(), id, person.id, false, null, false, 'unmarked');
 	}
 
 	const row = getDb()
@@ -261,7 +268,7 @@ export function duplicateEvent(sourceId: string, newId: string, newName: string,
 	for (const ix of intersections) {
 		// Keep presence for even_split; always clear custom amounts so the clone starts fresh
 		const keepPresent = source.type === 'even_split' ? ix.present : false;
-		upsertIntersection(generateId(), newId, ix.person_id, keepPresent, null, false, 'unpaid');
+		upsertIntersection(generateId(), newId, ix.person_id, keepPresent, null, false, 'unmarked');
 	}
 
 	const row = getDb()
@@ -279,11 +286,13 @@ export function getIntersections(divvyId: string): Intersection[] {
        JOIN events e ON e.id = i.event_id
        WHERE e.divvy_id = ?`
 		)
-		.all(divvyId) as Array<Omit<Intersection, 'present' | 'tax_included'> & { present: number; tax_included: number }>;
+		.all(divvyId) as Array<Omit<Intersection, 'present' | 'tax_included' | 'mark'> & { present: number; tax_included: number; mark: string; note: string | null }>;
 	return rows.map((r) => ({
 		...r,
 		present: r.present === 1,
-		tax_included: r.tax_included === 1
+		tax_included: r.tax_included === 1,
+		mark: (r.mark === 'marked' ? 'marked' : 'unmarked') as MarkStatus,
+		note: r.note ?? null
 	}));
 }
 
@@ -294,19 +303,19 @@ export function upsertIntersection(
 	present: boolean,
 	customAmount: number | null,
 	taxIncluded: boolean,
-	paidStatus: string
+	mark: string = 'unmarked'
 ) {
 	getDb()
 		.prepare(
-			`INSERT INTO intersections (id, event_id, person_id, present, custom_amount, tax_included, paid_status)
+			`INSERT INTO intersections (id, event_id, person_id, present, custom_amount, tax_included, mark)
        VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(event_id, person_id) DO UPDATE SET
          present = excluded.present,
          custom_amount = excluded.custom_amount,
          tax_included = excluded.tax_included,
-         paid_status = excluded.paid_status`
+         mark = excluded.mark`
 		)
-		.run(id, eventId, personId, present ? 1 : 0, customAmount, taxIncluded ? 1 : 0, paidStatus);
+		.run(id, eventId, personId, present ? 1 : 0, customAmount, taxIncluded ? 1 : 0, mark);
 }
 
 export function updateIntersectionPresence(eventId: string, personId: string, present: boolean) {
@@ -328,10 +337,16 @@ export function updateIntersectionAmount(
 		.run(customAmount, taxIncluded ? 1 : 0, eventId, personId);
 }
 
-export function updateIntersectionPaid(eventId: string, personId: string, paidStatus: string) {
+export function updateIntersectionPaid(eventId: string, personId: string, mark: string) {
 	getDb()
-		.prepare(`UPDATE intersections SET paid_status = ? WHERE event_id = ? AND person_id = ?`)
-		.run(paidStatus, eventId, personId);
+		.prepare(`UPDATE intersections SET mark = ? WHERE event_id = ? AND person_id = ?`)
+		.run(mark, eventId, personId);
+}
+
+export function updateIntersectionNote(eventId: string, personId: string, note: string | null) {
+	getDb()
+		.prepare(`UPDATE intersections SET note = ? WHERE event_id = ? AND person_id = ?`)
+		.run(note, eventId, personId);
 }
 
 // --- Payments ---
@@ -427,7 +442,7 @@ export function forkDivvy(
 		for (const ix of intersections) {
 			const newPersonId = personIdMap.get(ix.person_id);
 			if (newPersonId) {
-				upsertIntersection(generateId(), newEventId, newPersonId, ix.present === 1, ix.custom_amount, ix.tax_included === 1, 'unpaid');
+				upsertIntersection(generateId(), newEventId, newPersonId, ix.present === 1, ix.custom_amount, ix.tax_included === 1, 'unmarked');
 			}
 		}
 	}

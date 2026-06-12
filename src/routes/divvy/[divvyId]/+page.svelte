@@ -83,7 +83,7 @@
 		for (const event of events) {
 			intersections = [
 				...intersections,
-				{ id: `${event.id}:${person.id}`, event_id: event.id, person_id: person.id, present: false, custom_amount: null, tax_included: false, paid_status: 'unpaid' }
+				{ id: `${event.id}:${person.id}`, event_id: event.id, person_id: person.id, present: false, custom_amount: null, tax_included: false, mark: 'unmarked', note: null }
 			];
 		}
 	}
@@ -106,7 +106,7 @@
 		for (const person of people) {
 			intersections = [
 				...intersections,
-				{ id: `${event.id}:${person.id}`, event_id: event.id, person_id: person.id, present: false, custom_amount: null, tax_included: false, paid_status: 'unpaid' }
+				{ id: `${event.id}:${person.id}`, event_id: event.id, person_id: person.id, present: false, custom_amount: null, tax_included: false, mark: 'unmarked', note: null }
 			];
 		}
 	}
@@ -200,7 +200,7 @@
 			for (const person of people) {
 				intersections = [...intersections, {
 					id: `${newParent.id}:${person.id}`, event_id: newParent.id, person_id: person.id,
-					present: false, custom_amount: null, tax_included: false, paid_status: 'unpaid'
+					present: false, custom_amount: null, tax_included: false, mark: 'unmarked', note: null
 				}];
 			}
 
@@ -217,7 +217,7 @@
 					const keepPresent = child.type === 'even_split' ? (srcIx?.present ?? false) : false;
 					intersections = [...intersections, {
 						id: `${newChild.id}:${person.id}`, event_id: newChild.id, person_id: person.id,
-						present: keepPresent, custom_amount: null, tax_included: false, paid_status: 'unpaid'
+						present: keepPresent, custom_amount: null, tax_included: false, mark: 'unmarked', note: null
 					}];
 				}
 			}
@@ -232,7 +232,7 @@
 			const keepPresent = source.type === 'even_split' ? (srcIx?.present ?? false) : false;
 			intersections = [
 				...intersections,
-				{ id: `${event.id}:${person.id}`, event_id: event.id, person_id: person.id, present: keepPresent, custom_amount: null, tax_included: false, paid_status: 'unpaid' }
+				{ id: `${event.id}:${person.id}`, event_id: event.id, person_id: person.id, present: keepPresent, custom_amount: null, tax_included: false, mark: 'unmarked', note: null }
 			];
 		}
 	}
@@ -262,17 +262,24 @@
 
 	async function togglePaid(eventId: string, personId: string) {
 		const ix = intersections.find((i) => i.event_id === eventId && i.person_id === personId);
-		const newStatus = ix?.paid_status === 'paid' ? 'unpaid' : 'paid';
+		const newMark = ix?.mark === 'marked' ? 'unmarked' : 'marked';
 		intersections = intersections.map((i) =>
-			i.event_id === eventId && i.person_id === personId ? { ...i, paid_status: newStatus } : i
+			i.event_id === eventId && i.person_id === personId ? { ...i, mark: newMark } : i
 		);
 		try {
-			await api('PATCH', `/intersections/${eventId}/${personId}`, { paid_status: newStatus });
+			await api('PATCH', `/intersections/${eventId}/${personId}`, { mark: newMark });
 		} catch {
 			intersections = intersections.map((i) =>
-				i.event_id === eventId && i.person_id === personId ? { ...i, paid_status: ix?.paid_status ?? 'unpaid' } : i
+				i.event_id === eventId && i.person_id === personId ? { ...i, mark: ix?.mark ?? 'unmarked' } : i
 			);
 		}
+	}
+
+	async function updateNote(eventId: string, personId: string, note: string | null) {
+		intersections = intersections.map(i =>
+			i.event_id === eventId && i.person_id === personId ? { ...i, note } : i
+		);
+		await api('PATCH', `/intersections/${eventId}/${personId}`, { note });
 	}
 
 	async function setAllInRow(item: Person | Event, present: boolean) {
@@ -323,12 +330,21 @@
 		}
 	}
 
-	async function markAllPaid(personId: string) {
-		const toMark = intersections.filter(i => i.person_id === personId && i.paid_status === 'unpaid');
-		// Optimistic
-		intersections = intersections.map(i => i.person_id === personId ? { ...i, paid_status: 'paid' } : i);
-		await Promise.all(toMark.map(i =>
-			api('PATCH', `/intersections/${i.event_id}/${personId}`, { paid_status: 'paid' })
+	async function markAllPaid(personId: string, marked: boolean) {
+		const newMark = marked ? 'marked' : 'unmarked';
+		const toUpdate = intersections.filter(i => i.person_id === personId && i.mark !== newMark);
+		intersections = intersections.map(i => i.person_id === personId ? { ...i, mark: newMark } : i);
+		await Promise.all(toUpdate.map(i =>
+			api('PATCH', `/intersections/${i.event_id}/${personId}`, { mark: newMark })
+		));
+	}
+
+	async function markAllPaidEvent(eventId: string, marked: boolean) {
+		const newMark = marked ? 'marked' : 'unmarked';
+		const toUpdate = intersections.filter(i => i.event_id === eventId && i.mark !== newMark);
+		intersections = intersections.map(i => i.event_id === eventId ? { ...i, mark: newMark } : i);
+		await Promise.all(toUpdate.map(i =>
+			api('PATCH', `/intersections/${eventId}/${i.person_id}`, { mark: newMark })
 		));
 	}
 
@@ -623,6 +639,8 @@
 					onUpdateAmount={updateAmount}
 					onTogglePaid={togglePaid}
 					onMarkAllPaid={markAllPaid}
+					onMarkAllPaidEvent={markAllPaidEvent}
+					onUpdateNote={updateNote}
 					onSplitRemaining={splitRemaining}
 					onSetAllRow={setAllInRow}
 					onSetAllCol={setAllInCol}

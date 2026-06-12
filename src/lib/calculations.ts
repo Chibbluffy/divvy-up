@@ -76,12 +76,9 @@ export function calculateSettlement(
 	for (const event of events) {
 		if (!event.payer_person_id) continue;
 		const shares = calculateEventShare(event, intersections);
-		const eventIxs = intersections.filter((i) => i.event_id === event.id);
 
 		for (const [personId, share] of Object.entries(shares)) {
 			if (personId === event.payer_person_id) continue; // payer's own share is already covered
-			const ix = eventIxs.find((i) => i.person_id === personId);
-			if (ix?.paid_status === 'paid') continue; // already settled
 			outstanding[personId] = (outstanding[personId] ?? 0) - share;
 			outstanding[event.payer_person_id] = (outstanding[event.payer_person_id] ?? 0) + share;
 		}

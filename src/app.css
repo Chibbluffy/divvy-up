@@ -129,16 +129,16 @@
 /* CSS variables for cell state backgrounds — overridden in dark mode */
 :root {
 	--cell-inactive: #f9fafb;
-	--cell-payer: #ede9fe;
-	--cell-paid: #d1fae5;
-	--cell-unpaid: #fef3c7;
+	--cell-payer: #e0f2fe;
+	--cell-paid: #dcfce7;
+	--cell-unpaid: #fee2e2;
 	--col-header-text: #374151;
 }
 .dark {
 	--cell-inactive: #111827;
-	--cell-payer: #2e1065;
-	--cell-paid: #022c22;
-	--cell-unpaid: #1c0c00;
+	--cell-payer: #0c4a6e;
+	--cell-paid: #14532d;
+	--cell-unpaid: #7f1d1d;
 	--col-header-text: #e5e7eb;
 }
 

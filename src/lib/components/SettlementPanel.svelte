@@ -62,19 +62,19 @@
 		}, 0);
 	}
 
-	function getPersonGroupPaidStatus(personId: string, group: EventGroup): 'paid' | 'unpaid' | 'partial' {
+	function getPersonGroupPaidStatus(personId: string, group: EventGroup): 'marked' | 'unmarked' | 'partial' {
 		const relevant = group.children.filter(ev => {
-			if (ev.payer_person_id === personId) return false; // payer's own share is already covered
+			if (ev.payer_person_id === personId) return false;
 			const shares = calculateEventShare(ev, intersections);
 			return (shares[personId] ?? 0) > 0;
 		});
-		if (relevant.length === 0) return 'paid';
-		const paid = relevant.filter(ev => {
+		if (relevant.length === 0) return 'marked';
+		const marked = relevant.filter(ev => {
 			const ix = intersections.find(i => i.event_id === ev.id && i.person_id === personId);
-			return ix?.paid_status === 'paid';
+			return ix?.mark === 'marked';
 		});
-		if (paid.length === relevant.length) return 'paid';
-		if (paid.length === 0) return 'unpaid';
+		if (marked.length === relevant.length) return 'marked';
+		if (marked.length === 0) return 'unmarked';
 		return 'partial';
 	}
 
@@ -89,6 +89,12 @@
 
 	const logFormValid = $derived(
 		fromPersonId && toPersonId && fromPersonId !== toPersonId && paymentAmount && paymentAmount > 0
+	);
+
+	const suggestedAmount = $derived(
+		fromPersonId && toPersonId
+			? (settlement.transactions.find(tx => tx.fromId === fromPersonId && tx.toId === toPersonId)?.amount ?? null)
+			: null
 	);
 
 	async function submitPayment() {
@@ -210,6 +216,13 @@
 								placeholder="0.00"
 								class="text-sm w-24 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
 							/>
+							{#if suggestedAmount !== null}
+								<button
+									type="button"
+									onclick={() => paymentAmount = suggestedAmount}
+									class="text-[10px] text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 text-left leading-none"
+								>↑ use {formatCurrency(suggestedAmount)}</button>
+							{/if}
 						</div>
 						<div class="flex flex-col gap-1 flex-1 min-w-24">
 							<label class="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">Note (optional)</label>
@@ -270,6 +283,9 @@
 	<!-- Event / group breakdown -->
 	<div class="mb-6">
 		<h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Breakdown</h3>
+		<div class="text-xs text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 mb-3">
+			The paid/due marks here come from the grid and are for organization only — they don't affect the balances or "who pays who" above. Use direct payments to reduce what someone owes.
+		</div>
 		<div class="space-y-3">
 			{#each eventGroups() as group}
 				{@const payer = getEventPayer(group.payerPersonId)}
@@ -304,29 +320,41 @@
 						{#each people as person}
 							{@const share = getPersonGroupShare(person.id, group)}
 							{@const status = getPersonGroupPaidStatus(person.id, group)}
+							{@const cellNotes = group.children
+								.map(child => ({ name: child.name, note: intersections.find(i => i.event_id === child.id && i.person_id === person.id)?.note ?? null }))
+								.filter(n => n.note !== null)}
 							{#if share > 0.005}
-								<div class="px-4 py-2 flex items-center gap-3">
-									<span class="w-5 h-5 rounded-full flex-shrink-0" style="background-color: {person.color};"></span>
-									<span class="text-sm text-gray-700 dark:text-gray-300 flex-1">{person.name}</span>
-									<!-- Sub-item detail when grouped -->
-									{#if group.isGroup}
-										<div class="flex items-center gap-2 text-right">
-											<div class="text-xs text-gray-400 dark:text-gray-500 text-right">
-												{#each group.children as child}
-													{@const childShares = calculateEventShare(child, intersections)}
-													{#if (childShares[person.id] ?? 0) > 0.005}
-														<div>{child.name}: {formatCurrency(childShares[person.id])}</div>
-													{/if}
-												{/each}
+								<div class="px-4 py-2 flex flex-col gap-0.5">
+									<div class="flex items-center gap-3">
+										<span class="w-5 h-5 rounded-full flex-shrink-0" style="background-color: {person.color};"></span>
+										<span class="text-sm text-gray-700 dark:text-gray-300 flex-1">{person.name}</span>
+										<!-- Sub-item detail when grouped -->
+										{#if group.isGroup}
+											<div class="flex items-center gap-2 text-right">
+												<div class="text-xs text-gray-400 dark:text-gray-500 text-right">
+													{#each group.children as child}
+														{@const childShares = calculateEventShare(child, intersections)}
+														{#if (childShares[person.id] ?? 0) > 0.005}
+															<div>{child.name}: {formatCurrency(childShares[person.id])}</div>
+														{/if}
+													{/each}
+												</div>
+												<span class="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">{formatCurrency(share)}</span>
 											</div>
-											<span class="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">{formatCurrency(share)}</span>
-										</div>
-									{:else}
-										<span class="text-sm font-medium text-gray-800 dark:text-gray-200">{formatCurrency(share)}</span>
+										{:else}
+											<span class="text-sm font-medium text-gray-800 dark:text-gray-200">{formatCurrency(share)}</span>
+										{/if}
+										<span class="text-xs font-medium w-16 text-right {status === 'marked' ? 'text-emerald-600 dark:text-emerald-400' : status === 'partial' ? 'text-amber-500 dark:text-amber-400' : 'text-red-500 dark:text-red-400'}">
+											{status === 'marked' ? '✓ paid' : status === 'partial' ? '½ partial' : '○ due'}
+										</span>
+									</div>
+									{#if cellNotes.length > 0}
+										<p class="text-xs italic text-gray-400 dark:text-gray-500 ml-8">
+											{group.isGroup
+												? cellNotes.map(n => `${n.name}: ${n.note}`).join(' · ')
+												: cellNotes[0].note}
+										</p>
 									{/if}
-									<span class="text-xs font-medium w-16 text-right {status === 'paid' ? 'text-emerald-600' : status === 'partial' ? 'text-amber-500' : 'text-amber-600'}">
-										{status === 'paid' ? '✓ paid' : status === 'partial' ? '½ partial' : '○ due'}
-									</span>
 								</div>
 							{/if}
 						{/each}

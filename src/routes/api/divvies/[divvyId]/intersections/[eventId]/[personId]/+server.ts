@@ -1,6 +1,6 @@
 // Copyright (c) 2025–2026 Tom Wan (chibbluffy@protonmail.com). Open source.
 import { json, error } from '@sveltejs/kit';
-import { getDivvyById, getAccessLevel, updateIntersectionPresence, updateIntersectionAmount, updateIntersectionPaid } from '$lib/server/db';
+import { getDivvyById, getAccessLevel, updateIntersectionPresence, updateIntersectionAmount, updateIntersectionPaid, updateIntersectionNote } from '$lib/server/db';
 import type { RequestHandler } from './$types';
 
 function requireEdit(divvyId: string, token: string) {
@@ -28,8 +28,10 @@ export const PATCH: RequestHandler = async ({ params, url, request }) => {
 					? body.custom_amount
 					: parseFloat(body.custom_amount);
 		updateIntersectionAmount(eventId, personId, isNaN(amount as number) ? null : (amount as number | null), body.tax_included === true);
-	} else if ('paid_status' in body && ['paid', 'unpaid'].includes(body.paid_status)) {
-		updateIntersectionPaid(eventId, personId, body.paid_status);
+	} else if ('mark' in body && ['marked', 'unmarked'].includes(body.mark)) {
+		updateIntersectionPaid(eventId, personId, body.mark);
+	} else if ('note' in body && (body.note === null || typeof body.note === 'string')) {
+		updateIntersectionNote(eventId, personId, body.note || null);
 	} else {
 		throw error(400, 'Invalid update payload');
 	}
