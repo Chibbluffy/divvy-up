@@ -1,5 +1,5 @@
 // Copyright (c) 2025–2026 Tom Wan (chibbluffy@protonmail.com). Open source.
-import type { Event, Person, Intersection, Settlement, SettlementTransaction, SettlementBalance } from './types';
+import type { Event, Person, Intersection, Payment, Settlement, SettlementTransaction, SettlementBalance } from './types';
 
 export function getFinalAmount(
 	customAmount: number | null,
@@ -66,7 +66,8 @@ export function getRemainingAmount(event: Event, intersections: Intersection[]):
 export function calculateSettlement(
 	people: Person[],
 	events: Event[],
-	intersections: Intersection[]
+	intersections: Intersection[],
+	payments: Payment[] = []
 ): Settlement {
 	// net[personId]: positive = others owe them; negative = they owe others
 	const outstanding: Record<string, number> = {};
@@ -84,6 +85,12 @@ export function calculateSettlement(
 			outstanding[personId] = (outstanding[personId] ?? 0) - share;
 			outstanding[event.payer_person_id] = (outstanding[event.payer_person_id] ?? 0) + share;
 		}
+	}
+
+	// Apply direct person-to-person payments
+	for (const payment of payments) {
+		outstanding[payment.from_person_id] = (outstanding[payment.from_person_id] ?? 0) + payment.amount;
+		outstanding[payment.to_person_id] = (outstanding[payment.to_person_id] ?? 0) - payment.amount;
 	}
 
 	// Build balances for display

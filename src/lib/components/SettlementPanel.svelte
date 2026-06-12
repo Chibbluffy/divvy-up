@@ -1,13 +1,16 @@
 <!-- Copyright (c) 2025–2026 Tom Wan (chibbluffy@protonmail.com). Open source. -->
 <script lang="ts">
-	import type { Person, Event, Intersection } from '$lib/types';
+	import type { Person, Event, Intersection, Payment } from '$lib/types';
 	import { calculateSettlement, getPersonTotal, calculateEventShare, formatCurrency } from '$lib/calculations';
 
-	let { people, events, intersections }: {
+	let { people, events, intersections, payments, canEdit, logPayment, removePayment }: {
 		people: Person[]; events: Event[]; intersections: Intersection[];
+		payments: Payment[]; canEdit: boolean;
+		logPayment: (fromPersonId: string, toPersonId: string, amount: number, note: string | null) => Promise<void>;
+		removePayment: (id: string) => Promise<void>;
 	} = $props();
 
-	const settlement = $derived(calculateSettlement(people, events, intersections));
+	const settlement = $derived(calculateSettlement(people, events, intersections, payments));
 
 	// Group events: top-level events (no parent) are shown directly.
 	// Sub-items (parent_event_id set) are grouped under their parent.
@@ -76,6 +79,38 @@
 	}
 
 	const eventsWithNoPayer = $derived(events.filter(e => !e.payer_person_id && !e.parent_event_id));
+
+	// Log payment form state
+	let fromPersonId = $state('');
+	let toPersonId = $state('');
+	let paymentAmount = $state<number | null>(null);
+	let paymentNote = $state('');
+	let saving = $state(false);
+
+	const logFormValid = $derived(
+		fromPersonId && toPersonId && fromPersonId !== toPersonId && paymentAmount && paymentAmount > 0
+	);
+
+	async function submitPayment() {
+		if (!logFormValid || saving) return;
+		saving = true;
+		await logPayment(fromPersonId, toPersonId, paymentAmount!, paymentNote.trim() || null);
+		paymentAmount = null;
+		paymentNote = '';
+		saving = false;
+	}
+
+	function personName(id: string): string {
+		return people.find(p => p.id === id)?.name ?? id;
+	}
+
+	function personColor(id: string): string {
+		return people.find(p => p.id === id)?.color ?? '#6366f1';
+	}
+
+	function formatDate(ts: number): string {
+		return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+	}
 </script>
 
 <div class="flex-1 overflow-auto p-4 max-w-3xl mx-auto w-full">
@@ -130,6 +165,107 @@
 			<p class="text-emerald-700 dark:text-emerald-400 font-medium text-sm">🎉 Everything is settled up!</p>
 		</div>
 	{/if}
+
+	<!-- Direct payments -->
+	<div class="mb-6">
+		<h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Direct payments</h3>
+		<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+
+			<!-- Log a payment form -->
+			{#if canEdit && people.length >= 2}
+				<div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-700/40">
+					<p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Log a payment</p>
+					<div class="flex flex-wrap gap-2 items-end">
+						<div class="flex flex-col gap-1">
+							<label class="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">From</label>
+							<select
+								bind:value={fromPersonId}
+								class="text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+							>
+								<option value="">Person…</option>
+								{#each people as p}
+									<option value={p.id}>{p.name}</option>
+								{/each}
+							</select>
+						</div>
+						<div class="flex flex-col gap-1">
+							<label class="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">To</label>
+							<select
+								bind:value={toPersonId}
+								class="text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+							>
+								<option value="">Person…</option>
+								{#each people.filter(p => p.id !== fromPersonId) as p}
+									<option value={p.id}>{p.name}</option>
+								{/each}
+							</select>
+						</div>
+						<div class="flex flex-col gap-1">
+							<label class="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">Amount</label>
+							<input
+								type="number"
+								bind:value={paymentAmount}
+								min="0.01"
+								step="0.01"
+								placeholder="0.00"
+								class="text-sm w-24 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+							/>
+						</div>
+						<div class="flex flex-col gap-1 flex-1 min-w-24">
+							<label class="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">Note (optional)</label>
+							<input
+								type="text"
+								bind:value={paymentNote}
+								placeholder="e.g. Venmo"
+								class="text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+							/>
+						</div>
+						<button
+							onclick={submitPayment}
+							disabled={!logFormValid || saving}
+							class="text-sm px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium transition-colors"
+						>{saving ? 'Saving…' : 'Log'}</button>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Payment history -->
+			{#if payments.length > 0}
+				<div class="divide-y divide-gray-50 dark:divide-gray-700">
+					{#each payments as payment (payment.id)}
+						<div class="flex items-center gap-3 px-4 py-2.5">
+							<span class="w-5 h-5 rounded-full flex-shrink-0" style="background-color: {personColor(payment.from_person_id)};"></span>
+							<div class="flex-1 min-w-0">
+								<span class="text-sm text-gray-700 dark:text-gray-300">
+									<span class="font-medium">{personName(payment.from_person_id)}</span>
+									<span class="text-gray-400"> → </span>
+									<span class="font-medium">{personName(payment.to_person_id)}</span>
+								</span>
+								{#if payment.note}
+									<span class="text-xs text-gray-400 dark:text-gray-500 ml-1">· {payment.note}</span>
+								{/if}
+								<span class="text-xs text-gray-400 dark:text-gray-500 ml-1">· {formatDate(payment.created_at)}</span>
+							</div>
+							<span class="text-sm font-semibold text-gray-800 dark:text-gray-200 flex-shrink-0">{formatCurrency(payment.amount)}</span>
+							{#if canEdit}
+								<button
+									onclick={() => removePayment(payment.id)}
+									class="text-gray-300 dark:text-gray-600 hover:text-red-400 transition-colors flex-shrink-0 ml-1"
+									title="Remove"
+								>
+									<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+									</svg>
+								</button>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<p class="px-4 py-4 text-sm text-gray-400 dark:text-gray-500 text-center">No direct payments logged yet.</p>
+			{/if}
+		</div>
+	</div>
 
 	<!-- Event / group breakdown -->
 	<div class="mb-6">

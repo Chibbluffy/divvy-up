@@ -2,7 +2,7 @@
 import Database from 'better-sqlite3';
 import { join, dirname } from 'node:path';
 import { mkdirSync } from 'node:fs';
-import type { Divvy, Person, Event, Intersection, AccessLevel } from '$lib/types';
+import type { Divvy, Person, Event, Intersection, Payment, AccessLevel } from '$lib/types';
 
 const DB_PATH = process.env.DATABASE_PATH ?? join(process.cwd(), 'divvyup.db');
 
@@ -58,6 +58,17 @@ function initSchema(db: Database.Database) {
   `);
 	// Migrate existing databases: add parent_event_id if missing
 	try { db.exec(`ALTER TABLE events ADD COLUMN parent_event_id TEXT REFERENCES events(id) ON DELETE SET NULL`); } catch {}
+	db.exec(`
+    CREATE TABLE IF NOT EXISTS payments (
+      id TEXT PRIMARY KEY,
+      divvy_id TEXT NOT NULL REFERENCES divvies(id) ON DELETE CASCADE,
+      from_person_id TEXT NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+      to_person_id TEXT NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+      amount REAL NOT NULL,
+      note TEXT,
+      created_at INTEGER NOT NULL
+    )
+  `);
 	db.exec(`
     CREATE TABLE IF NOT EXISTS intersections (
       id TEXT PRIMARY KEY,
@@ -321,6 +332,36 @@ export function updateIntersectionPaid(eventId: string, personId: string, paidSt
 	getDb()
 		.prepare(`UPDATE intersections SET paid_status = ? WHERE event_id = ? AND person_id = ?`)
 		.run(paidStatus, eventId, personId);
+}
+
+// --- Payments ---
+
+export function getPayments(divvyId: string): Payment[] {
+	return getDb()
+		.prepare('SELECT * FROM payments WHERE divvy_id = ? ORDER BY created_at ASC')
+		.all(divvyId) as Payment[];
+}
+
+export function createPayment(
+	id: string,
+	divvyId: string,
+	fromPersonId: string,
+	toPersonId: string,
+	amount: number,
+	note: string | null
+): Payment {
+	const now = Date.now();
+	getDb()
+		.prepare(
+			`INSERT INTO payments (id, divvy_id, from_person_id, to_person_id, amount, note, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+		)
+		.run(id, divvyId, fromPersonId, toPersonId, amount, note, now);
+	return getDb().prepare('SELECT * FROM payments WHERE id = ?').get(id) as Payment;
+}
+
+export function deletePayment(id: string) {
+	getDb().prepare('DELETE FROM payments WHERE id = ?').run(id);
 }
 
 // --- Fork (copy a Divvy) ---

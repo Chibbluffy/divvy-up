@@ -1,7 +1,7 @@
 <!-- Copyright (c) 2025–2026 Tom Wan (chibbluffy@protonmail.com). Open source. -->
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { Person, Event, Intersection, AccessLevel } from '$lib/types';
+	import type { Person, Event, Intersection, Payment, AccessLevel } from '$lib/types';
 	import DivvyGrid from '$lib/components/DivvyGrid.svelte';
 	import PersonModal from '$lib/components/PersonModal.svelte';
 	import EventModal from '$lib/components/EventModal.svelte';
@@ -14,6 +14,7 @@
 	let people = $state<Person[]>(data.people);
 	let events = $state<Event[]>(data.events);
 	let intersections = $state<Intersection[]>(data.intersections);
+	let payments = $state<Payment[]>(data.payments);
 	let accessLevel = $state<AccessLevel>(data.accessLevel);
 	let token = data.token;
 
@@ -358,6 +359,16 @@
 		));
 	}
 
+	async function logPayment(fromPersonId: string, toPersonId: string, amount: number, note: string | null) {
+		const { payment } = await api('POST', '/payments', { from_person_id: fromPersonId, to_person_id: toPersonId, amount, note });
+		payments = [...payments, payment];
+	}
+
+	async function removePayment(id: string) {
+		payments = payments.filter(p => p.id !== id);
+		await api('DELETE', `/payments/${id}`);
+	}
+
 	async function forkDivvy() {
 		const newName = prompt('Name for your copy:', `${divvy.name} (Copy)`);
 		if (!newName) return;
@@ -620,7 +631,7 @@
 		{/if}
 
 		{#if activeTab === 'settlement'}
-			<SettlementPanel {people} {events} {intersections} />
+			<SettlementPanel {people} {events} {intersections} {payments} {canEdit} {logPayment} {removePayment} />
 		{/if}
 	</main>
 </div>

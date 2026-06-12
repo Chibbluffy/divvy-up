@@ -69,3 +69,13 @@ export interface SettlementBalance {
 	totalShouldPay: number;
 	net: number;
 }
+
+export interface Payment {
+	id: string;
+	divvy_id: string;
+	from_person_id: string;
+	to_person_id: string;
+	amount: number;
+	note: string | null;
+	created_at: number;
+}
