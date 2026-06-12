@@ -579,7 +579,7 @@
 				</div>
 			{/if}
 
-			{#if people.length === 0 || events.length === 0}
+			{#if people.length === 0 && events.length === 0}
 				<div class="flex-1 flex items-center justify-center p-12 text-center">
 					<div>
 						<div class="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -587,13 +587,7 @@
 								<path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18M10 3v18M14 3v18" />
 							</svg>
 						</div>
-						<h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-							{people.length === 0 && events.length === 0
-								? 'Start by adding people and items'
-								: people.length === 0
-								? 'Add some people first'
-								: 'Add an item to get started'}
-						</h3>
+						<h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Start by adding people and items</h3>
 						<p class="text-sm text-gray-400 dark:text-gray-500">
 							{isOwner ? 'Use the buttons above to build your cost-split grid.' : 'The owner needs to add people and items.'}
 						</p>
