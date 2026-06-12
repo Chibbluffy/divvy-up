@@ -17,6 +17,7 @@ jobs:
           script: |
             cd ~/divvy-up
             git pull
-            npm ci --omit=dev
+            npm ci
             npm run build
+            npm prune --omit=dev
             sudo systemctl restart divvy-up
