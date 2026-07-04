@@ -349,7 +349,7 @@
 										<div class="flex items-center justify-center gap-0.5">
 											<button
 												onclick={() => { if (transpose) onEditEvent(colItem as Event); else onEditPerson(colItem as Person); }}
-												class="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+												class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
 												title="Edit"
 											>
 												<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -358,7 +358,7 @@
 											</button>
 											<button
 												onclick={() => { if (transpose) onDeleteEvent((colItem as Event).id); else onDeletePerson((colItem as Person).id); }}
-												class="p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors"
+												class="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors"
 												title="Delete"
 											>
 												<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -407,7 +407,7 @@
 		bind:this={bodyScrollEl}
 		onscroll={onBodyScroll}
 		class="overflow-auto flex-1"
-		style="max-height: calc(100vh - 320px);"
+		style="max-height: max(180px, calc(100vh - 320px));"
 	>
 		<table style="width: {tableWidth}px; min-width: {tableWidth}px; table-layout: fixed; border-collapse: separate; border-spacing: 0;">
 			<colgroup>
@@ -434,10 +434,10 @@
 									<span class="font-semibold text-gray-800 dark:text-gray-200 truncate text-xs flex-1 min-w-0" title={rowLabel(rowItem)}>{rowLabel(rowItem)}</span>
 									<!-- Hover-only destructive actions (edit mode only) -->
 									{#if isOwner && mode === 'edit'}
-										<div class="absolute right-0 top-1/2 -translate-y-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-gray-900 pl-1">
+										<div class="absolute right-0 top-1/2 -translate-y-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 hover-show transition-opacity bg-white dark:bg-gray-900 pl-1">
 											<button
 												onclick={() => { if (transpose) onEditPerson(rowItem as Person); else onEditEvent(rowItem as Event); }}
-												class="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+												class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
 												title="Edit"
 											>
 												<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -447,7 +447,7 @@
 											{#if !transpose}
 												<button
 													onclick={() => onDuplicateEvent((rowItem as Event).id)}
-													class="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+													class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
 													title="Duplicate"
 												>
 													<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -457,7 +457,7 @@
 											{/if}
 											<button
 												onclick={() => { if (transpose) onDeletePerson((rowItem as Person).id); else onDeleteEvent((rowItem as Event).id); }}
-												class="p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-400 dark:text-gray-500 hover:text-red-500"
+												class="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-400 dark:text-gray-500 hover:text-red-500"
 												title="Delete"
 											>
 												<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

@@ -44,7 +44,7 @@
 				<span class="w-2 h-2 bg-indigo-500 rounded-full"></span>
 				No accounts. No logins. Just sharing.
 			</div>
-			<h1 class="text-5xl font-bold text-gray-900 dark:text-gray-100 tracking-tight leading-tight mb-4">
+			<h1 class="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-gray-100 tracking-tight leading-tight mb-4">
 				Split costs<br />without the drama
 			</h1>
 			<p class="text-lg text-gray-500 dark:text-gray-400 leading-relaxed">

@@ -182,11 +182,11 @@
 				<div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-700/40">
 					<p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Log a payment</p>
 					<div class="flex flex-wrap gap-2 items-end">
-						<div class="flex flex-col gap-1">
+						<div class="flex flex-col gap-1 flex-1 min-w-[100px]">
 							<label class="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">From</label>
 							<select
 								bind:value={fromPersonId}
-								class="text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+								class="w-full text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
 							>
 								<option value="">Person…</option>
 								{#each people as p}
@@ -194,11 +194,11 @@
 								{/each}
 							</select>
 						</div>
-						<div class="flex flex-col gap-1">
+						<div class="flex flex-col gap-1 flex-1 min-w-[100px]">
 							<label class="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">To</label>
 							<select
 								bind:value={toPersonId}
-								class="text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+								class="w-full text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
 							>
 								<option value="">Person…</option>
 								{#each people.filter(p => p.id !== fromPersonId) as p}

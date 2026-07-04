@@ -142,6 +142,12 @@
 	--col-header-text: #e5e7eb;
 }
 
+/* Touch devices: reveal hover-only elements */
+@media (hover: none) {
+	.hover-show { opacity: 1 !important; }
+	.hover-show-faint { opacity: 0.4 !important; }
+}
+
 /* Smooth transitions */
 * {
 	transition-property: background-color, border-color, color, opacity;

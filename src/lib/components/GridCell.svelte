@@ -61,11 +61,14 @@
 		e.stopPropagation(); // prevent window click handler from immediately closing popup
 		if (!canEdit || !cellEl) return;
 		const rect = cellEl.getBoundingClientRect();
+		const isMobile = window.innerWidth < 640;
+		const minW = isMobile ? 200 : 160;
+		const left = Math.max(8, Math.min(rect.left, window.innerWidth - minW - 8));
 		const spaceBelow = window.innerHeight - rect.bottom;
 		if (spaceBelow > 160) {
-			popupStyle = `top:${rect.bottom + 2}px;left:${Math.min(rect.left, window.innerWidth - 165)}px;`;
+			popupStyle = `top:${rect.bottom + 2}px;left:${left}px;min-width:${minW}px;`;
 		} else {
-			popupStyle = `bottom:${window.innerHeight - rect.top + 2}px;left:${Math.min(rect.left, window.innerWidth - 165)}px;`;
+			popupStyle = `bottom:${window.innerHeight - rect.top + 2}px;left:${left}px;min-width:${minW}px;`;
 		}
 		editing = true;
 	}
@@ -85,11 +88,14 @@
 		e.stopPropagation();
 		if (!cellEl) return;
 		const rect = cellEl.getBoundingClientRect();
+		const isMobile = window.innerWidth < 640;
+		const minW = isMobile ? 240 : 195;
+		const left = Math.max(8, Math.min(rect.left, window.innerWidth - minW - 8));
 		const spaceBelow = window.innerHeight - rect.bottom;
 		if (spaceBelow > 160) {
-			popupStyle = `top:${rect.bottom + 2}px;left:${Math.min(rect.left, window.innerWidth - 200)}px;`;
+			popupStyle = `top:${rect.bottom + 2}px;left:${left}px;min-width:${minW}px;`;
 		} else {
-			popupStyle = `bottom:${window.innerHeight - rect.top + 2}px;left:${Math.min(rect.left, window.innerWidth - 200)}px;`;
+			popupStyle = `bottom:${window.innerHeight - rect.top + 2}px;left:${left}px;min-width:${minW}px;`;
 		}
 		noteValue = cellNote ?? '';
 		noting = true;
@@ -122,10 +128,10 @@
 		<button
 			onclick={openNote}
 			title={cellNote ? cellNote : 'Add a comment'}
-			class="absolute top-0.5 right-0.5 p-0.5 rounded transition-opacity z-10
-				{cellNote ? 'opacity-100 text-indigo-400 dark:text-indigo-300' : 'opacity-0 group-hover/cell:opacity-40 text-gray-400'}"
+			class="absolute top-0.5 right-0.5 p-1 rounded transition-opacity z-10
+				{cellNote ? 'opacity-100 text-indigo-400 dark:text-indigo-300' : 'opacity-0 group-hover/cell:opacity-40 hover-show-faint text-gray-400'}"
 		>
-			<svg class="w-2.5 h-2.5" fill={cellNote ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+			<svg class="w-3 h-3" fill={cellNote ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 				<path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z" />
 			</svg>
 		</button>
@@ -135,13 +141,13 @@
 			<button
 				disabled={!canEdit}
 				onclick={onTogglePresence}
-				class="w-6 h-6 rounded flex items-center justify-center transition-all {canEdit ? 'cursor-pointer' : 'cursor-default'}"
+				class="w-8 h-8 rounded-lg flex items-center justify-center transition-all {canEdit ? 'cursor-pointer' : 'cursor-default'}"
 				style={present
 					? `background:${person.color};border:2px solid ${person.color};`
 					: 'border:2px solid #d1d5db;background:transparent;'}
 			>
 				{#if present}
-					<svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+					<svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
 						<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
 					</svg>
 				{/if}
@@ -214,7 +220,7 @@
 {#if editing}
 	<div
 		class="cell-popup fixed z-50 bg-white dark:bg-gray-800 border-2 border-indigo-400 dark:border-indigo-500 rounded-xl shadow-2xl p-3 flex flex-col gap-2"
-		style={popupStyle + 'min-width:155px;'}
+		style={popupStyle}
 	>
 		<p class="text-xs font-semibold text-gray-600 dark:text-gray-300 truncate">{person.name}</p>
 		<input
@@ -261,7 +267,7 @@
 {#if noting}
 	<div
 		class="cell-popup fixed z-50 bg-white dark:bg-gray-800 border-2 border-indigo-400 dark:border-indigo-500 rounded-xl shadow-2xl p-3 flex flex-col gap-2"
-		style={popupStyle + 'min-width:190px;'}
+		style={popupStyle}
 	>
 		<p class="text-xs font-semibold text-gray-600 dark:text-gray-300 truncate">{person.name} · {event.name}</p>
 		<textarea
