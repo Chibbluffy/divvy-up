@@ -17,7 +17,12 @@ export const PATCH: RequestHandler = async ({ params, url, request }) => {
 	if (!body?.name || typeof body.name !== 'string' || !body.name.trim()) throw error(400, 'Name is required');
 	if (!body?.color) throw error(400, 'Color is required');
 
-	updatePerson(params.personId, body.name.trim(), body.color);
+	const groupLeadPersonId =
+		body.group_lead_person_id && typeof body.group_lead_person_id === 'string'
+			? body.group_lead_person_id
+			: null;
+
+	updatePerson(params.personId, body.name.trim(), body.color, groupLeadPersonId);
 	return json({ ok: true });
 };
 

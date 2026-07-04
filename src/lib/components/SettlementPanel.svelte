@@ -117,6 +117,17 @@
 	function formatDate(ts: number): string {
 		return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 	}
+
+	function groupRootId(personId: string): string {
+		const person = people.find(p => p.id === personId);
+		return person?.group_lead_person_id ?? personId;
+	}
+
+	const toPersonCandidates = $derived(
+		fromPersonId
+			? people.filter(p => p.id !== fromPersonId && groupRootId(p.id) !== groupRootId(fromPersonId))
+			: people
+	);
 </script>
 
 <div class="flex-1 overflow-auto p-4 max-w-3xl mx-auto w-full">
@@ -124,13 +135,16 @@
 	<div class="mb-6">
 		<h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Balance summary</h3>
 		<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-			{#each settlement.balances as bal}
+			{#each settlement.balances.filter(b => !b.isGroupMember) as bal}
 				<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center gap-3">
 					<span class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style="background-color: {bal.color};">
 						{bal.personName[0].toUpperCase()}
 					</span>
 					<div class="flex-1 min-w-0">
 						<p class="font-semibold text-gray-800 dark:text-gray-200 text-sm truncate">{bal.personName}</p>
+						{#if bal.groupMemberNames?.length}
+							<p class="text-xs text-indigo-500 dark:text-indigo-400 truncate">+ {bal.groupMemberNames.join(', ')}</p>
+						{/if}
 						<p class="text-xs text-gray-500 dark:text-gray-400">Total: {formatCurrency(getPersonTotal(bal.personId, events, intersections))}</p>
 					</div>
 					<div class="text-right flex-shrink-0">
@@ -201,7 +215,7 @@
 								class="w-full text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
 							>
 								<option value="">Person…</option>
-								{#each people.filter(p => p.id !== fromPersonId) as p}
+								{#each toPersonCandidates as p}
 									<option value={p.id}>{p.name}</option>
 								{/each}
 							</select>

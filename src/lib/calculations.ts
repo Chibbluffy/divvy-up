@@ -90,22 +90,40 @@ export function calculateSettlement(
 		outstanding[payment.to_person_id] = (outstanding[payment.to_person_id] ?? 0) - payment.amount;
 	}
 
+	// Merge group members' balances into their lead — members end at 0 so they never appear in transactions
+	for (const p of people) {
+		if (p.group_lead_person_id && outstanding[p.group_lead_person_id] !== undefined) {
+			outstanding[p.group_lead_person_id] += outstanding[p.id] ?? 0;
+			outstanding[p.id] = 0;
+		}
+	}
+
+	// Build group membership index
+	const leadToMembers = new Map<string, Person[]>();
+	for (const p of people) {
+		if (p.group_lead_person_id) {
+			const arr = leadToMembers.get(p.group_lead_person_id) ?? [];
+			arr.push(p);
+			leadToMembers.set(p.group_lead_person_id, arr);
+		}
+	}
+
 	// Build balances for display
 	const balances: SettlementBalance[] = people.map((p) => {
-		const totalOwed = Object.entries(outstanding)
-			.filter(([id, net]) => id !== p.id && net < 0)
-			.reduce((s, [, net]) => s + Math.abs(net), 0);
+		const members = leadToMembers.get(p.id) ?? [];
 		return {
 			personId: p.id,
 			personName: p.name,
 			color: p.color,
 			totalOwed: Math.max(0, outstanding[p.id] ?? 0),
 			totalShouldPay: Math.max(0, -(outstanding[p.id] ?? 0)),
-			net: outstanding[p.id] ?? 0
+			net: outstanding[p.id] ?? 0,
+			...(members.length > 0 && { groupMemberNames: members.map((m) => m.name) }),
+			...(p.group_lead_person_id && { isGroupMember: true, groupLeadId: p.group_lead_person_id })
 		};
 	});
 
-	// Minimize transactions
+	// Minimize transactions (non-leads already have outstanding === 0, so they're excluded automatically)
 	const transactions = minimizeTransactions(outstanding, people);
 
 	return { transactions, balances };

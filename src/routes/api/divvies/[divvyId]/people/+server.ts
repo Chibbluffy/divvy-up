@@ -17,8 +17,12 @@ export const POST: RequestHandler = async ({ params, url, request }) => {
 	if (!body?.name || typeof body.name !== 'string' || !body.name.trim()) throw error(400, 'Name is required');
 	if (!body?.color || typeof body.color !== 'string') throw error(400, 'Color is required');
 
+	const groupLeadPersonId =
+		body.group_lead_person_id && typeof body.group_lead_person_id === 'string'
+			? body.group_lead_person_id
+			: null;
 	const existing = getPeople(params.divvyId);
-	const person = createPerson(generateId(), params.divvyId, body.name.trim(), body.color, existing.length);
+	const person = createPerson(generateId(), params.divvyId, body.name.trim(), body.color, existing.length, groupLeadPersonId);
 	return json({ person });
 };
 

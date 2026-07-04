@@ -38,9 +38,12 @@ function initSchema(db: Database.Database) {
       name TEXT NOT NULL,
       color TEXT NOT NULL,
       sort_order INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL
+      created_at INTEGER NOT NULL,
+      group_lead_person_id TEXT REFERENCES people(id) ON DELETE SET NULL
     )
   `);
+	// Migrate existing databases: add group_lead_person_id if missing
+	try { db.exec(`ALTER TABLE people ADD COLUMN group_lead_person_id TEXT REFERENCES people(id) ON DELETE SET NULL`); } catch {}
 	db.exec(`
     CREATE TABLE IF NOT EXISTS events (
       id TEXT PRIMARY KEY,
@@ -140,15 +143,16 @@ export function createPerson(
 	divvyId: string,
 	name: string,
 	color: string,
-	sortOrder: number
+	sortOrder: number,
+	groupLeadPersonId: string | null = null
 ): Person {
 	const now = Date.now();
 	getDb()
 		.prepare(
-			`INSERT INTO people (id, divvy_id, name, color, sort_order, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`
+			`INSERT INTO people (id, divvy_id, name, color, sort_order, group_lead_person_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
 		)
-		.run(id, divvyId, name, color, sortOrder, now);
+		.run(id, divvyId, name, color, sortOrder, groupLeadPersonId, now);
 
 	// Create placeholder intersections for all existing events
 	const events = getEvents(divvyId);
@@ -159,8 +163,10 @@ export function createPerson(
 	return getDb().prepare('SELECT * FROM people WHERE id = ?').get(id) as Person;
 }
 
-export function updatePerson(id: string, name: string, color: string) {
-	getDb().prepare('UPDATE people SET name = ?, color = ? WHERE id = ?').run(name, color, id);
+export function updatePerson(id: string, name: string, color: string, groupLeadPersonId: string | null) {
+	getDb()
+		.prepare('UPDATE people SET name = ?, color = ?, group_lead_person_id = ? WHERE id = ?')
+		.run(name, color, groupLeadPersonId, id);
 }
 
 export function deletePerson(id: string) {
@@ -402,15 +408,32 @@ export function forkDivvy(
 
 	const people = getPeople(sourceDivvyId);
 	const personIdMap = new Map<string, string>();
+
+	// Pre-generate all new IDs before any inserts
 	for (const person of people) {
-		const newPersonId = generateId();
-		personIdMap.set(person.id, newPersonId);
+		personIdMap.set(person.id, generateId());
+	}
+	// Insert people without group_lead first (avoid FK order issues)
+	for (const person of people) {
+		const newPersonId = personIdMap.get(person.id)!;
 		getDb()
 			.prepare(
 				`INSERT INTO people (id, divvy_id, name, color, sort_order, created_at)
          VALUES (?, ?, ?, ?, ?, ?)`
 			)
 			.run(newPersonId, newDivvyId, person.name, person.color, person.sort_order, now);
+	}
+	// Then set group_lead references now that all people exist
+	for (const person of people) {
+		if (person.group_lead_person_id) {
+			const newPersonId = personIdMap.get(person.id)!;
+			const newLeadId = personIdMap.get(person.group_lead_person_id) ?? null;
+			if (newLeadId) {
+				getDb()
+					.prepare('UPDATE people SET group_lead_person_id = ? WHERE id = ?')
+					.run(newLeadId, newPersonId);
+			}
+		}
 	}
 
 	const events = getEvents(sourceDivvyId);

@@ -22,6 +22,7 @@ export interface Person {
 	color: string;
 	sort_order: number;
 	created_at: number;
+	group_lead_person_id: string | null;
 }
 
 export interface Event {
@@ -69,6 +70,9 @@ export interface SettlementBalance {
 	totalOwed: number;
 	totalShouldPay: number;
 	net: number;
+	groupMemberNames?: string[];
+	isGroupMember?: boolean;
+	groupLeadId?: string;
 }
 
 export interface Payment {

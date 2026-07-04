@@ -77,8 +77,8 @@
 	}
 
 	// People
-	async function addPerson(name: string, color: string) {
-		const { person } = await api('POST', '/people', { name, color });
+	async function addPerson(name: string, color: string, groupLeadPersonId: string | null) {
+		const { person } = await api('POST', '/people', { name, color, group_lead_person_id: groupLeadPersonId });
 		people = [...people, person];
 		for (const event of events) {
 			intersections = [
@@ -88,9 +88,9 @@
 		}
 	}
 
-	async function updatePerson(id: string, name: string, color: string) {
-		await api('PATCH', `/people/${id}`, { name, color });
-		people = people.map((p) => (p.id === id ? { ...p, name, color } : p));
+	async function updatePerson(id: string, name: string, color: string, groupLeadPersonId: string | null) {
+		await api('PATCH', `/people/${id}`, { name, color, group_lead_person_id: groupLeadPersonId });
+		people = people.map((p) => (p.id === id ? { ...p, name, color, group_lead_person_id: groupLeadPersonId } : p));
 	}
 
 	async function deletePerson(id: string) {
@@ -658,9 +658,9 @@
 	<PersonModal
 		person={editingPerson}
 		{people}
-		onSave={async (name, color) => {
-			if (editingPerson) await updatePerson(editingPerson.id, name, color);
-			else await addPerson(name, color);
+		onSave={async (name, color, groupLeadPersonId) => {
+			if (editingPerson) await updatePerson(editingPerson.id, name, color, groupLeadPersonId);
+			else await addPerson(name, color, groupLeadPersonId);
 			showPersonModal = false;
 		}}
 		onClose={() => showPersonModal = false}

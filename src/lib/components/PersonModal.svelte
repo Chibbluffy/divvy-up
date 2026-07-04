@@ -11,7 +11,7 @@
 	}: {
 		person: Person | null;
 		people: Person[];
-		onSave: (name: string, color: string) => Promise<void>;
+		onSave: (name: string, color: string, groupLeadPersonId: string | null) => Promise<void>;
 		onClose: () => void;
 	} = $props();
 
@@ -21,15 +21,25 @@
 
 	let name = $state(person?.name ?? '');
 	let color = $state(person?.color ?? getNextColor(usedColors));
+	let groupLeadPersonId = $state<string | null>(person?.group_lead_person_id ?? null);
 	let saving = $state(false);
 	let err = $state('');
+
+	// People who can be a group lead: must be roots themselves (not a member of someone else)
+	const leadCandidates = $derived(
+		people.filter((p) => p.id !== person?.id && p.group_lead_person_id === null)
+	);
+	// If this person is currently a lead for others, they can't also join another group
+	const isLeadForOthers = $derived(
+		!!person && people.some((p) => p.id !== person!.id && p.group_lead_person_id === person!.id)
+	);
 
 	async function handleSave() {
 		if (!name.trim()) { err = 'Name is required'; return; }
 		saving = true;
 		err = '';
 		try {
-			await onSave(name.trim(), color);
+			await onSave(name.trim(), color, groupLeadPersonId);
 		} catch (e) {
 			err = e instanceof Error ? e.message : 'Failed to save';
 			saving = false;
@@ -91,6 +101,35 @@
 				</button>
 			{/each}
 		</div>
+
+		{#if people.length > 0}
+			<div class="border-t border-gray-100 dark:border-gray-700 pt-4 mb-4">
+				<p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Pays together with</p>
+				{#if isLeadForOthers}
+					<p class="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
+						Others are paying as part of this person's group — remove them first to join a different group.
+					</p>
+				{:else if leadCandidates.length === 0}
+					<p class="text-xs text-gray-400 dark:text-gray-500">Add more people to enable payment grouping.</p>
+				{:else}
+					<select
+						bind:value={groupLeadPersonId}
+						class="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+					>
+						<option value={null}>Pays independently</option>
+						{#each leadCandidates as candidate}
+							<option value={candidate.id}>{candidate.name}</option>
+						{/each}
+					</select>
+					{#if groupLeadPersonId}
+						{@const leadName = leadCandidates.find((p) => p.id === groupLeadPersonId)?.name ?? ''}
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+							{name.trim() || 'This person'}'s balance will be combined with {leadName}'s in settlement. {leadName} pays or receives on their behalf.
+						</p>
+					{/if}
+				{/if}
+			</div>
+		{/if}
 
 		{#if err}
 			<p class="text-sm text-red-600 mb-3">{err}</p>
