@@ -419,7 +419,7 @@
 				{#each rowItems as rowItem (isPerson(rowItem) ? rowItem.id : rowItem.id)}
 					<tr class="group hover:bg-gray-50/40 dark:hover:bg-gray-700/40 transition-colors">
 						<!-- Row label -->
-						<td class="sticky left-0 bg-white dark:bg-gray-900 group-hover:bg-gray-50/40 dark:group-hover:bg-gray-700/40 border-b border-r border-gray-200 dark:border-gray-700 p-0 relative" style="min-width: {rowLabelW}px; max-width: {rowLabelW}px;">
+						<td class="sticky left-0 z-10 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800 border-b border-r border-gray-200 dark:border-gray-700 p-0 relative" style="min-width: {rowLabelW}px; max-width: {rowLabelW}px;">
 							<div
 								class="absolute top-0 right-0 w-2 h-full cursor-ew-resize z-10 hover:bg-indigo-400/20 dark:hover:bg-indigo-500/20 transition-colors"
 								onmousedown={startRowDrag}
@@ -546,7 +546,7 @@
 
 				<!-- Column totals footer -->
 				<tr class="border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800">
-					<td class="sticky left-0 bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide relative" style="height: {footerHeight}px; vertical-align: middle;">
+					<td class="sticky left-0 z-10 bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide relative" style="height: {footerHeight}px; vertical-align: middle;">
 						Total owed
 						<div
 							class="absolute top-0 right-0 w-2 h-full cursor-ew-resize z-10 hover:bg-indigo-400/20 dark:hover:bg-indigo-500/20 transition-colors"
