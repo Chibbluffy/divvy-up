@@ -9,6 +9,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
 
 	const body = await request.json().catch(() => null);
 	const newName = body?.name?.trim() || `${divvy.name} (Copy)`;
+	const copyImages = body?.copyImages === true;
 
 	const newDivvy = forkDivvy(
 		params.divvyId,
@@ -16,7 +17,8 @@ export const POST: RequestHandler = async ({ params, request }) => {
 		newName,
 		generateToken(),
 		generateToken(),
-		generateToken()
+		generateToken(),
+		copyImages
 	);
 
 	return json({ divvy: newDivvy });

@@ -1,7 +1,7 @@
 <!-- Copyright (c) 2025–2026 Tom Wan (chibbluffy@protonmail.com). Open source. -->
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { Person, Event, Intersection, Payment, AccessLevel } from '$lib/types';
+	import type { Person, Event, Intersection, Payment, EventImage, AccessLevel } from '$lib/types';
 	import DivvyGrid from '$lib/components/DivvyGrid.svelte';
 	import PersonModal from '$lib/components/PersonModal.svelte';
 	import EventModal from '$lib/components/EventModal.svelte';
@@ -17,6 +17,15 @@
 	let payments = $state<Payment[]>(data.payments);
 	let accessLevel = $state<AccessLevel>(data.accessLevel);
 	let token = data.token;
+
+	function groupImagesByEvent(imgs: EventImage[]): Record<string, EventImage[]> {
+		const map: Record<string, EventImage[]> = {};
+		for (const img of imgs) {
+			(map[img.event_id] ??= []).push(img);
+		}
+		return map;
+	}
+	let imagesByEvent = $state<Record<string, EventImage[]>>(groupImagesByEvent(data.eventImages));
 
 	// UI state
 	let activeTab = $state<'edit' | 'payment' | 'settlement'>('edit');
@@ -385,13 +394,32 @@
 		await api('DELETE', `/payments/${id}`);
 	}
 
+	async function uploadImage(eventId: string, file: File) {
+		const formData = new FormData();
+		formData.append('image', file);
+		const res = await fetch(`/api/divvies/${divvy.id}/events/${eventId}/images?t=${token}`, {
+			method: 'POST',
+			body: formData
+		});
+		if (!res.ok) throw new Error(await res.text());
+		const { image } = await res.json();
+		imagesByEvent = { ...imagesByEvent, [eventId]: [...(imagesByEvent[eventId] ?? []), image] };
+	}
+
+	async function deleteImage(eventId: string, imageId: string) {
+		imagesByEvent = { ...imagesByEvent, [eventId]: (imagesByEvent[eventId] ?? []).filter(i => i.id !== imageId) };
+		await fetch(`/api/divvies/${divvy.id}/events/${eventId}/images/${imageId}?t=${token}`, { method: 'DELETE' });
+	}
+
 	async function forkDivvy() {
 		const newName = prompt('Name for your copy:', `${divvy.name} (Copy)`);
 		if (!newName) return;
+		const hasImages = Object.values(imagesByEvent).some(imgs => imgs.length > 0);
+		const copyImages = hasImages ? confirm('Copy receipt images to the new divvy?') : false;
 		const res = await fetch(`/api/divvies/${divvy.id}/fork`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ name: newName.trim() })
+			body: JSON.stringify({ name: newName.trim(), copyImages })
 		});
 		const { divvy: newDivvy } = await res.json();
 		window.location.href = `/divvy/${newDivvy.id}?t=${newDivvy.owner_token}`;
@@ -671,6 +699,10 @@
 	<EventModal
 		event={editingEvent}
 		{people}
+		images={editingEvent ? (imagesByEvent[editingEvent.id] ?? []) : []}
+		getImageUrl={(imageId) => `/api/divvies/${divvy.id}/events/${editingEvent?.id}/images/${imageId}?t=${token}`}
+		onUploadImage={editingEvent && canEdit ? (file) => uploadImage(editingEvent!.id, file) : undefined}
+		onDeleteImage={editingEvent && canEdit ? (imageId) => deleteImage(editingEvent!.id, imageId) : undefined}
 		onSave={async (eventData) => {
 			if (editingEvent) await updateEvent(editingEvent.id, eventData);
 			else await addEvent(eventData);

@@ -1,12 +1,14 @@
 // Copyright (c) 2025–2026 Tom Wan (chibbluffy@protonmail.com). Open source.
 import Database from 'better-sqlite3';
 import { join, dirname } from 'node:path';
-import { mkdirSync } from 'node:fs';
-import type { Divvy, Person, Event, Intersection, Payment, AccessLevel, MarkStatus } from '$lib/types';
+import { mkdirSync, copyFileSync, unlinkSync } from 'node:fs';
+import type { Divvy, Person, Event, Intersection, Payment, EventImage, AccessLevel, MarkStatus } from '$lib/types';
 
 const DB_PATH = process.env.DATABASE_PATH ?? join(process.cwd(), 'divvyup.db');
+export const UPLOADS_DIR = process.env.UPLOADS_DIR ?? join(process.cwd(), 'uploads', 'receipts');
 
 mkdirSync(dirname(DB_PATH), { recursive: true });
+mkdirSync(UPLOADS_DIR, { recursive: true });
 
 let _db: Database.Database | null = null;
 
@@ -94,6 +96,15 @@ function initSchema(db: Database.Database) {
 	try { db.exec(`ALTER TABLE intersections ADD COLUMN note TEXT`); } catch {}
 	// Migrate: add expression column
 	try { db.exec(`ALTER TABLE intersections ADD COLUMN custom_amount_expression TEXT`); } catch {}
+	db.exec(`
+    CREATE TABLE IF NOT EXISTS event_images (
+      id TEXT PRIMARY KEY,
+      event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      filename TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    )
+  `);
 }
 
 // --- Divvies ---
@@ -361,6 +372,41 @@ export function updateIntersectionNote(eventId: string, personId: string, note: 
 		.run(note, eventId, personId);
 }
 
+// --- Event Images ---
+
+export function getEventImages(eventId: string): EventImage[] {
+	return getDb()
+		.prepare('SELECT * FROM event_images WHERE event_id = ? ORDER BY sort_order ASC, created_at ASC')
+		.all(eventId) as EventImage[];
+}
+
+export function getImagesForDivvy(divvyId: string): EventImage[] {
+	return getDb()
+		.prepare(`SELECT ei.* FROM event_images ei JOIN events e ON ei.event_id = e.id WHERE e.divvy_id = ? ORDER BY ei.event_id, ei.sort_order ASC`)
+		.all(divvyId) as EventImage[];
+}
+
+export function getEventImage(imageId: string): EventImage | null {
+	return (getDb()
+		.prepare('SELECT * FROM event_images WHERE id = ?')
+		.get(imageId) as EventImage | undefined) ?? null;
+}
+
+export function createEventImage(id: string, eventId: string, filename: string, sortOrder: number): EventImage {
+	const now = Date.now();
+	getDb()
+		.prepare('INSERT INTO event_images (id, event_id, filename, sort_order, created_at) VALUES (?, ?, ?, ?, ?)')
+		.run(id, eventId, filename, sortOrder, now);
+	return { id, event_id: eventId, filename, sort_order: sortOrder, created_at: now };
+}
+
+export function deleteEventImage(imageId: string): string | null {
+	const img = getEventImage(imageId);
+	if (!img) return null;
+	getDb().prepare('DELETE FROM event_images WHERE id = ?').run(imageId);
+	return img.filename;
+}
+
 // --- Payments ---
 
 export function getPayments(divvyId: string): Payment[] {
@@ -399,7 +445,8 @@ export function forkDivvy(
 	newName: string,
 	ownerToken: string,
 	editToken: string,
-	viewToken: string
+	viewToken: string,
+	copyImages: boolean = false
 ): Divvy {
 	const source = getDivvyById(sourceDivvyId);
 	if (!source) throw new Error('Source divvy not found');
@@ -443,8 +490,11 @@ export function forkDivvy(
 	}
 
 	const events = getEvents(sourceDivvyId);
+	const eventIdMap = new Map<string, string>();
+
 	for (const event of events) {
 		const newEventId = generateId();
+		eventIdMap.set(event.id, newEventId);
 		const newPayerId = event.payer_person_id ? personIdMap.get(event.payer_person_id) ?? null : null;
 		getDb()
 			.prepare(
@@ -472,6 +522,21 @@ export function forkDivvy(
 			const newPersonId = personIdMap.get(ix.person_id);
 			if (newPersonId) {
 				upsertIntersection(generateId(), newEventId, newPersonId, ix.present === 1, ix.custom_amount, ix.tax_included === 1, 'unmarked', ix.custom_amount_expression ?? null);
+			}
+		}
+	}
+
+	if (copyImages) {
+		for (const [oldEventId, newEventId] of eventIdMap) {
+			const imgs = getEventImages(oldEventId);
+			for (const img of imgs) {
+				const newFilename = `${generateId()}.jpg`;
+				try {
+					copyFileSync(join(UPLOADS_DIR, img.filename), join(UPLOADS_DIR, newFilename));
+					createEventImage(generateId(), newEventId, newFilename, img.sort_order);
+				} catch {
+					// skip if source file is missing
+				}
 			}
 		}
 	}

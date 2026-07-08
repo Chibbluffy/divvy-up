@@ -77,6 +77,14 @@ export interface SettlementBalance {
 	groupLeadId?: string;
 }
 
+export interface EventImage {
+	id: string;
+	event_id: string;
+	filename: string;
+	sort_order: number;
+	created_at: number;
+}
+
 export interface Payment {
 	id: string;
 	divvy_id: string;

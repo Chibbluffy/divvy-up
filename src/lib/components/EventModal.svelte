@@ -1,12 +1,16 @@
 <!-- Copyright (c) 2025–2026 Tom Wan (chibbluffy@protonmail.com). Open source. -->
 <script lang="ts">
-	import type { Event, Person } from '$lib/types';
+	import type { Event, Person, EventImage } from '$lib/types';
 
 	let {
-		event, people, onSave, onClose
+		event, people, images = [], getImageUrl, onUploadImage, onDeleteImage, onSave, onClose
 	}: {
 		event: Event | null;
 		people: Person[];
+		images?: EventImage[];
+		getImageUrl?: (imageId: string) => string;
+		onUploadImage?: (file: File) => Promise<void>;
+		onDeleteImage?: (imageId: string) => Promise<void>;
 		onSave: (data: Partial<Event> & { subItemCount?: number; subItemNames?: string[]; subItemCosts?: number[] }) => Promise<void>;
 		onClose: () => void;
 	} = $props();
@@ -67,10 +71,35 @@
 	}
 
 	let dialogEl: HTMLDivElement;
+	let lightboxId = $state<string | null>(null);
+	let uploading = $state(false);
+	let uploadErr = $state('');
+	let fileInputEl = $state<HTMLInputElement | null>(null);
 
-	function handleKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
+	async function handleUpload(e: Event & { currentTarget: HTMLInputElement }) {
+		const file = e.currentTarget.files?.[0];
+		if (!file || !onUploadImage) return;
+		uploading = true;
+		uploadErr = '';
+		try {
+			await onUploadImage(file);
+		} catch {
+			uploadErr = 'Upload failed. Check file type and size (max 20 MB).';
+		} finally {
+			uploading = false;
+			e.currentTarget.value = '';
+		}
+	}
+
+	function handleKey(e: KeyboardEvent) {
+		if (e.key === 'Escape') {
+			if (lightboxId !== null) { lightboxId = null; }
+			else onClose();
+		}
+	}
 
 	function onWindowPointerDown(e: PointerEvent) {
+		if (lightboxId !== null) return; // lightbox handles its own close
 		if (dialogEl && !dialogEl.contains(e.target as Node)) onClose();
 	}
 </script>
@@ -215,6 +244,74 @@
 			{/if}
 		</div>
 
+		<!-- Receipt images (edit mode only) -->
+		{#if isEditing}
+			<div class="border-t border-gray-100 dark:border-gray-700 mt-4 pt-4">
+				<div class="flex items-center justify-between mb-2">
+					<p class="text-sm font-medium text-gray-700 dark:text-gray-300">Receipt photos</p>
+					{#if onUploadImage}
+						{#if uploading}
+							<span class="text-xs text-gray-400">Uploading…</span>
+						{:else}
+							<button
+								type="button"
+								onclick={() => fileInputEl?.click()}
+								class="text-xs font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
+							>+ Add photo</button>
+							<input
+								bind:this={fileInputEl}
+								type="file"
+								accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+								class="hidden"
+								onchange={handleUpload}
+							/>
+						{/if}
+					{/if}
+				</div>
+
+				{#if uploadErr}
+					<p class="text-xs text-red-500 mb-2">{uploadErr}</p>
+				{/if}
+
+				{#if images.length > 0}
+					<div class="grid grid-cols-3 gap-2">
+						{#each images as img (img.id)}
+							<div class="relative group/img">
+								<button
+									type="button"
+									onclick={() => lightboxId = img.id}
+									class="w-full aspect-square overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 block"
+								>
+									<img
+										src={getImageUrl?.(img.id)}
+										alt="Receipt"
+										class="w-full h-full object-cover"
+										loading="lazy"
+									/>
+								</button>
+								{#if onDeleteImage}
+									<button
+										type="button"
+										onclick={() => onDeleteImage?.(img.id)}
+										class="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"
+										title="Delete photo"
+									>
+										<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+										</svg>
+									</button>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				{:else if !onUploadImage}
+					<p class="text-xs text-gray-400 dark:text-gray-500">No receipt photos attached.</p>
+				{:else}
+					<p class="text-xs text-gray-400 dark:text-gray-500">No photos yet. Add a receipt photo for reference.</p>
+				{/if}
+			</div>
+		{/if}
+
 		{#if err}
 			<p class="text-sm text-red-600 mt-3">{err}</p>
 		{/if}
@@ -232,5 +329,52 @@
 				{saving ? 'Saving…' : isEditing ? 'Save changes' : splitIntoSubs ? `Create ${subItemCount} items` : 'Add item'}
 			</button>
 		</div>
+
+		<!-- Lightbox overlay — inside dialogEl so pointer-down doesn't close the modal -->
+		{#if lightboxId !== null}
+			{@const lbUrl = getImageUrl?.(lightboxId)}
+			<div
+				class="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center"
+				role="button"
+				tabindex="-1"
+				onclick={() => lightboxId = null}
+				onkeydown={(e) => e.key === 'Escape' && (lightboxId = null)}
+			>
+				<div
+					class="relative max-w-[92vw] max-h-[92vh] flex flex-col items-center"
+					role="presentation"
+					onclick={(e) => e.stopPropagation()}
+				>
+					<img
+						src={lbUrl}
+						alt="Receipt"
+						class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+					/>
+					<div class="absolute top-2 right-2 flex gap-2">
+						<a
+							href={lbUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							onclick={(e) => e.stopPropagation()}
+							class="bg-black/60 hover:bg-black/80 text-white text-xs font-medium px-3 py-1.5 rounded-lg flex items-center gap-1"
+						>
+							Open in new tab
+							<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+							</svg>
+						</a>
+						<button
+							onclick={() => lightboxId = null}
+							class="bg-black/60 hover:bg-black/80 text-white rounded-full w-7 h-7 flex items-center justify-center"
+							title="Close"
+						>
+							<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+							</svg>
+						</button>
+					</div>
+				</div>
+			</div>
+		{/if}
 	</div>
 </div>
