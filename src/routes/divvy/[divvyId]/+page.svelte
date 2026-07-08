@@ -532,7 +532,7 @@
 		<button
 			onclick={() => activeTab = 'payment'}
 			class="px-4 py-3 text-sm font-medium border-b-2 transition-colors {activeTab === 'payment' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}"
-		>Payments</button>
+		>Planner</button>
 		<button
 			onclick={() => activeTab = 'settlement'}
 			class="px-4 py-3 text-sm font-medium border-b-2 transition-colors {activeTab === 'settlement' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}"

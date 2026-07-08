@@ -202,11 +202,10 @@
 				<button
 					disabled={!canEdit}
 					onclick={onTogglePaid}
-					title="Organizational mark — doesn't affect settlement"
-					class="flex flex-col items-center gap-0.5 px-0.5 py-0.5 rounded {canEdit ? 'cursor-pointer hover:opacity-75' : 'cursor-default'}"
+					title={paidStatus === 'marked' ? 'Marked as paid (click to unmark)' : 'Click to mark as paid'}
+					class="w-full h-full min-h-[40px] flex items-center justify-center {canEdit ? 'cursor-pointer hover:opacity-75' : 'cursor-default'}"
 				>
-					<span class="text-xs font-semibold text-gray-700 dark:text-gray-300 leading-none">{formatCurrency(shareAmount)}</span>
-					<span class="text-[9px] font-semibold {paidStatus === 'marked' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}">{paidStatus === 'marked' ? '✓ paid' : '○ due'}</span>
+					<span class="text-xs font-semibold text-gray-700 dark:text-gray-300">{formatCurrency(shareAmount)}</span>
 				</button>
 			{/if}
 		{:else}
@@ -244,11 +243,10 @@
 				<button
 					disabled={!canEdit}
 					onclick={onTogglePaid}
-					title="Organizational mark — doesn't affect settlement"
-					class="flex flex-col items-center gap-0.5 px-0.5 py-0.5 rounded {canEdit ? 'cursor-pointer hover:opacity-75' : 'cursor-default'}"
+					title={paidStatus === 'marked' ? 'Marked as paid (click to unmark)' : 'Click to mark as paid'}
+					class="w-full h-full min-h-[40px] flex items-center justify-center {canEdit ? 'cursor-pointer hover:opacity-75' : 'cursor-default'}"
 				>
-					<span class="text-xs font-semibold text-gray-700 dark:text-gray-300 leading-none">{formatCurrency(finalAmount)}</span>
-					<span class="text-[9px] font-semibold {paidStatus === 'marked' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}">{paidStatus === 'marked' ? '✓ paid' : '○ due'}</span>
+					<span class="text-xs font-semibold text-gray-700 dark:text-gray-300">{formatCurrency(finalAmount)}</span>
 				</button>
 			{/if}
 		{:else}
