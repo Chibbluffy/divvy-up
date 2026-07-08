@@ -31,13 +31,25 @@
 	);
 
 	function fmtTip(x: number): string {
-		const r = Math.round(x * 100) / 100;
-		return r === Math.floor(r) ? String(r) : r.toFixed(2);
+		const r = Math.round(x * 1000) / 1000;
+		return r === Math.floor(r) ? String(r) : r.toFixed(2).replace(/\.?0+$/, '');
+	}
+
+	// Per-person tip adjusted for each person's tax situation.
+	// perPerson is post-tax (remaining uses getFinalAmount sums). If an existing
+	// intersection is pre-tax (tax_included=false), divide by the tax multiplier so
+	// the tip in the expression, after tax is applied, equals perPerson.
+	function adjustedTip(personId: string): number {
+		const ix = eventIxs.find(i => i.person_id === personId);
+		if (ix?.custom_amount != null && !ix.tax_included && event.tax_percentage) {
+			return Math.round((perPerson / (1 + event.tax_percentage / 100)) * 1000) / 1000;
+		}
+		return perPerson;
 	}
 
 	function previewExpression(personId: string): string {
 		const ix = eventIxs.find(i => i.person_id === personId);
-		const tip = fmtTip(perPerson);
+		const tip = fmtTip(adjustedTip(personId));
 		if (ix?.custom_amount_expression) return `${ix.custom_amount_expression}+${tip}`;
 		if (ix?.custom_amount != null) return `${ix.custom_amount}+${tip}`;
 		return tip;
@@ -115,7 +127,7 @@
 							{/if}
 						</div>
 						{#if checked && perPerson > 0}
-							<span class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex-shrink-0">+{formatCurrency(perPerson)}</span>
+							<span class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex-shrink-0">+{formatCurrency(adjustedTip(person.id))}</span>
 						{/if}
 					</label>
 				{/each}

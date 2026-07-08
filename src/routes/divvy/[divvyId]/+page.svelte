@@ -392,11 +392,21 @@
 			let taxIncluded: boolean;
 
 			if (ix?.custom_amount != null) {
+				// perPerson is post-tax (getRemainingAmount uses getFinalAmount sums).
+				// If this intersection is pre-tax, dividing by the tax multiplier gives the
+				// pre-tax amount that, after the tax rate is applied, equals perPerson exactly.
+				const taxMult = (!ix.tax_included && event.tax_percentage)
+					? (1 + event.tax_percentage / 100)
+					: 1;
+				const preTaxTip = Math.round((perPerson / taxMult) * 1000) / 1000;
+				const adjustedTipStr = fmtTip(preTaxTip);
 				const baseExpr = ix.custom_amount_expression ?? String(ix.custom_amount);
-				newExpression = `${baseExpr}+${tipStr}`;
-				newAmount = Math.round((ix.custom_amount + perPerson) * 100) / 100;
+				newExpression = `${baseExpr}+${adjustedTipStr}`;
+				newAmount = Math.round((ix.custom_amount + preTaxTip) * 100) / 100;
 				taxIncluded = ix.tax_included;
 			} else {
+				// No existing amount — store post-tax with tax_included: true so
+				// getFinalAmount doesn't apply the tax rate on top of it again.
 				newExpression = null;
 				newAmount = perPerson;
 				taxIncluded = true;
