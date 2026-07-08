@@ -379,8 +379,15 @@
 														{@const childShares = calculateEventShare(child, intersections)}
 														{@const childExpr = getExprDetail(person.id, child)}
 														{#if (childShares[person.id] ?? 0) > 0.005}
-															<div class="truncate max-w-[220px]" title="{child.name}: {childExpr ? `${childExpr.exprFull} = ${childExpr.finalStr}` : formatCurrency(childShares[person.id])}">
-																{child.name}: {#if childExpr}{childExpr.exprShort} = <span class="font-bold text-gray-700 dark:text-gray-200">{childExpr.finalStr}</span>{:else}{formatCurrency(childShares[person.id])}{/if}
+															<div class="flex items-baseline justify-end gap-0.5 min-w-0" title="{child.name}: {childExpr ? `${childExpr.exprFull} = ${childExpr.finalStr}` : formatCurrency(childShares[person.id])}">
+																<span class="flex-shrink-0">{child.name}:</span>
+																{#if childExpr}
+																	<span class="min-w-0 truncate font-mono max-w-[120px]">{childExpr.exprShort}</span>
+																	<span class="flex-shrink-0 font-mono whitespace-nowrap"> = </span>
+																	<span class="flex-shrink-0 font-bold text-gray-700 dark:text-gray-200 whitespace-nowrap">{childExpr.finalStr}</span>
+																{:else}
+																	<span class="flex-shrink-0">{formatCurrency(childShares[person.id])}</span>
+																{/if}
 															</div>
 														{/if}
 													{/each}
@@ -390,7 +397,11 @@
 										{:else}
 											{@const exprDetail = getExprDetail(person.id, group.children[0])}
 											{#if exprDetail}
-												<span class="text-xs font-mono text-gray-600 dark:text-gray-400 max-w-[220px] truncate" title="{exprDetail.exprFull} = {exprDetail.finalStr}">{exprDetail.exprShort} = <span class="font-bold text-gray-800 dark:text-gray-200">{exprDetail.finalStr}</span></span>
+												<div class="flex items-baseline min-w-0 max-w-[55%]" title="{exprDetail.exprFull} = {exprDetail.finalStr}">
+													<span class="min-w-0 truncate text-xs font-mono text-gray-500 dark:text-gray-400">{exprDetail.exprShort}</span>
+													<span class="flex-shrink-0 text-xs font-mono text-gray-500 dark:text-gray-400"> = </span>
+													<span class="flex-shrink-0 text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">{exprDetail.finalStr}</span>
+												</div>
 											{:else}
 												<span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{formatCurrency(share)}</span>
 											{/if}
