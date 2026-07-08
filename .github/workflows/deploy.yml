@@ -14,11 +14,26 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
+          script_stop: true
           script: |
+            set -euo pipefail
+
             cd ~/divvy-up
+
+            echo "==> Syncing code"
             git fetch origin main
             git reset --hard origin/main
-            npm ci
+
+            echo "==> Installing dependencies"
+            npm ci --prefer-offline
+
+            echo "==> Building"
             npm run build
             npm prune --omit=dev
+
+            echo "==> Restarting service"
             sudo systemctl restart divvy-up
+
+            echo "==> Waiting for service to come up"
+            sleep 3
+            sudo systemctl is-active --quiet divvy-up && echo "Service is running" || { echo "Service failed to start"; sudo systemctl status divvy-up --no-pager; exit 1; }
