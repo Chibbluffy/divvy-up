@@ -727,9 +727,14 @@
 					onEditPerson={(p) => { editingPerson = p; showPersonModal = true; }}
 					onDeletePerson={deletePerson}
 					onEditEvent={(e) => {
-					// Child events: open the parent for editing instead
-					const target = e.parent_event_id ? (events.find(ev => ev.id === e.parent_event_id) ?? e) : e;
-					editingEvent = target; showEventModal = true;
+					const parentId = e.parent_event_id ?? e.id;
+					const parent = events.find(ev => ev.id === parentId) ?? e;
+					const children = events.filter(ev => ev.parent_event_id === parentId);
+					// Parent total_cost is stored as 0; compute it from children for the modal
+					editingEvent = children.length > 0
+						? { ...parent, total_cost: children.reduce((s, c) => s + c.total_cost, 0) }
+						: parent;
+					showEventModal = true;
 				}}
 					onDeleteEvent={deleteEvent}
 					onDuplicateEvent={duplicateEvent}
