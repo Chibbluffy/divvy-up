@@ -753,7 +753,11 @@
 		{/if}
 
 		{#if activeTab === 'settlement'}
-			<SettlementPanel {people} {events} {intersections} {payments} {canEdit} {logPayment} {removePayment} />
+			<SettlementPanel
+				{people} {events} {intersections} {payments} {canEdit} {logPayment} {removePayment}
+				{imagesByEvent}
+				getImageUrl={(eventId, imageId) => `/api/divvies/${divvy.id}/events/${eventId}/images/${imageId}?t=${token}`}
+			/>
 		{/if}
 	</main>
 </div>

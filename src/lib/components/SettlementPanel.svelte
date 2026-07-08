@@ -1,14 +1,22 @@
 <!-- Copyright (c) 2025–2026 Tom Wan (chibbluffy@protonmail.com). Open source. -->
 <script lang="ts">
-	import type { Person, Event, Intersection, Payment } from '$lib/types';
+	import type { Person, Event, Intersection, Payment, EventImage } from '$lib/types';
 	import { calculateSettlement, getPersonTotal, calculateEventShare, formatCurrency } from '$lib/calculations';
 
-	let { people, events, intersections, payments, canEdit, logPayment, removePayment }: {
+	let { people, events, intersections, payments, canEdit, logPayment, removePayment, imagesByEvent = {}, getImageUrl }: {
 		people: Person[]; events: Event[]; intersections: Intersection[];
 		payments: Payment[]; canEdit: boolean;
 		logPayment: (fromPersonId: string, toPersonId: string, amount: number, note: string | null) => Promise<void>;
 		removePayment: (id: string) => Promise<void>;
+		imagesByEvent?: Record<string, EventImage[]>;
+		getImageUrl?: (eventId: string, imageId: string) => string;
 	} = $props();
+
+	let lightboxImg = $state<{ eventId: string; imageId: string } | null>(null);
+
+	function onKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape' && lightboxImg !== null) lightboxImg = null;
+	}
 
 	const settlement = $derived(calculateSettlement(people, events, intersections, payments));
 
@@ -399,6 +407,35 @@
 							{/if}
 						{/each}
 					</div>
+
+					<!-- Receipt images -->
+					{#if getImageUrl}
+						{@const groupImages = group.children.flatMap(child =>
+							(imagesByEvent[child.id] ?? []).map(img => ({ ...img, eventId: child.id, childName: child.name }))
+						)}
+						{#if groupImages.length > 0}
+							<div class="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+								<p class="text-xs font-medium text-gray-400 dark:text-gray-500 mb-2">Receipts</p>
+								<div class="flex flex-wrap gap-2">
+									{#each groupImages as img}
+										<button
+											type="button"
+											onclick={() => lightboxImg = { eventId: img.eventId, imageId: img.id }}
+											class="relative group/img w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 flex-shrink-0 hover:ring-2 hover:ring-indigo-400 transition-all"
+											title="{group.isGroup ? img.childName + ' — ' : ''}Receipt"
+										>
+											<img
+												src={getImageUrl(img.eventId, img.id)}
+												alt="Receipt"
+												class="w-full h-full object-cover"
+												loading="lazy"
+											/>
+										</button>
+									{/each}
+								</div>
+							</div>
+						{/if}
+					{/if}
 				</div>
 			{/each}
 		</div>
@@ -420,3 +457,51 @@
 		</div>
 	{/if}
 </div>
+
+<svelte:window onkeydown={onKeydown} />
+
+{#if lightboxImg !== null && getImageUrl}
+	{@const lbUrl = getImageUrl(lightboxImg.eventId, lightboxImg.imageId)}
+	<div
+		class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center"
+		role="button"
+		tabindex="-1"
+		onclick={() => lightboxImg = null}
+		onkeydown={(e) => e.key === 'Escape' && (lightboxImg = null)}
+	>
+		<div
+			class="relative max-w-[92vw] max-h-[92vh] flex flex-col items-center"
+			role="presentation"
+			onclick={(e) => e.stopPropagation()}
+		>
+			<img
+				src={lbUrl}
+				alt="Receipt"
+				class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+			/>
+			<div class="absolute top-2 right-2 flex gap-2">
+				<a
+					href={lbUrl}
+					target="_blank"
+					rel="noopener noreferrer"
+					onclick={(e) => e.stopPropagation()}
+					class="bg-black/60 hover:bg-black/80 text-white text-xs font-medium px-3 py-1.5 rounded-lg flex items-center gap-1"
+				>
+					Open in new tab
+					<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+					</svg>
+				</a>
+				<button
+					onclick={() => lightboxImg = null}
+					class="bg-black/60 hover:bg-black/80 text-white rounded-full w-7 h-7 flex items-center justify-center"
+					title="Close"
+				>
+					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
