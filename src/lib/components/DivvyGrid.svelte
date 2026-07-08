@@ -643,7 +643,7 @@
 				<!-- Column totals footer -->
 				<tr class="border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800">
 					<td class="sticky left-0 z-10 bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide relative" style="height: {footerHeight}px; vertical-align: middle;">
-						Total owed
+						Total spent
 						<div
 							class="absolute top-0 right-0 w-2 h-full cursor-ew-resize z-10 hover:bg-indigo-400/20 dark:hover:bg-indigo-500/20 transition-colors"
 							onmousedown={startRowDrag}

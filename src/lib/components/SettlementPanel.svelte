@@ -118,6 +118,22 @@
 		return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 	}
 
+	// Returns expression display strings for custom_amount cells that have an expression.
+	// short: uses "+tax" abbreviation; full: uses "+X%tax" for title attribute.
+	function getExprDetail(personId: string, ev: Event): { short: string; full: string } | null {
+		if (ev.type !== 'custom_amount') return null;
+		const ix = intersections.find(i => i.event_id === ev.id && i.person_id === personId);
+		if (!ix?.custom_amount_expression) return null;
+		const shares = calculateEventShare(ev, intersections);
+		const final = shares[personId] ?? 0;
+		const expr = '$' + ix.custom_amount_expression.replace(/\+/g, '+$');
+		const hasTax = !ix.tax_included && ev.tax_percentage;
+		return {
+			short: `${expr}${hasTax ? '+tax' : ''}=${formatCurrency(final)}`,
+			full:  `${expr}${hasTax ? `+${ev.tax_percentage}%tax` : ''}=${formatCurrency(final)}`
+		};
+	}
+
 	function groupRootId(personId: string): string {
 		const person = people.find(p => p.id === personId);
 		return person?.group_lead_person_id ?? personId;
@@ -352,15 +368,22 @@
 												<div class="text-xs text-gray-400 dark:text-gray-500 text-right">
 													{#each group.children as child}
 														{@const childShares = calculateEventShare(child, intersections)}
+														{@const childExpr = getExprDetail(person.id, child)}
 														{#if (childShares[person.id] ?? 0) > 0.005}
-															<div>{child.name}: {formatCurrency(childShares[person.id])}</div>
+															{@const line = childExpr ? childExpr.short : formatCurrency(childShares[person.id])}
+															<div class="truncate max-w-[220px]" title="{child.name}: {childExpr ? childExpr.full : formatCurrency(childShares[person.id])}">{child.name}: {line}</div>
 														{/if}
 													{/each}
 												</div>
 												<span class="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">{formatCurrency(share)}</span>
 											</div>
 										{:else}
-											<span class="text-sm font-medium text-gray-800 dark:text-gray-200">{formatCurrency(share)}</span>
+											{@const exprDetail = getExprDetail(person.id, group.children[0])}
+											{#if exprDetail}
+												<span class="text-xs font-mono text-gray-700 dark:text-gray-300 max-w-[220px] truncate" title={exprDetail.full}>{exprDetail.short}</span>
+											{:else}
+												<span class="text-sm font-medium text-gray-800 dark:text-gray-200">{formatCurrency(share)}</span>
+											{/if}
 										{/if}
 									</div>
 									{#if cellNotes.length > 0}
