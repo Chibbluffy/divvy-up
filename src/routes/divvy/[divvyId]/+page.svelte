@@ -497,6 +497,7 @@
 	// Hide parent events (those that have children) — only show sub-items and standalone events
 	const parentEventIds = $derived(new Set(events.filter(e => e.parent_event_id).map(e => e.parent_event_id!)));
 	const visibleEvents = $derived(events.filter((e) => !hiddenEvents.has(e.id) && !parentEventIds.has(e.id)));
+	const eventsWithImages = $derived(new Set(Object.entries(imagesByEvent).filter(([, imgs]) => imgs.length > 0).map(([id]) => id)));
 </script>
 
 <svelte:head>
@@ -748,6 +749,7 @@
 					onSetAllRow={setAllInRow}
 					onSetAllCol={setAllInCol}
 					onReorderEvents={reorderEvents}
+					{eventsWithImages}
 				/>
 			{/if}
 		{/if}

@@ -10,7 +10,8 @@
 		onEditPerson, onDeletePerson, onEditEvent, onDeleteEvent,
 		onDuplicateEvent, onTogglePresence, onUpdateAmount, onTogglePaid,
 		onMarkAllPaid, onMarkAllPaidEvent, onUpdateNote, onSplitRemaining, onSetAllRow, onSetAllCol,
-		onReorderEvents = undefined
+		onReorderEvents = undefined,
+		eventsWithImages = undefined
 	}: {
 		people: Person[]; events: Event[]; intersections: Intersection[];
 		mode: 'edit' | 'payment'; transpose: boolean;
@@ -31,6 +32,7 @@
 		onSetAllRow: (item: Person | Event, present: boolean) => void;
 		onSetAllCol: (item: Person | Event, present: boolean) => void;
 		onReorderEvents?: (orderedIds: string[]) => void;
+		eventsWithImages?: Set<string>;
 	} = $props();
 
 	const isOwner = $derived(accessLevel === 'owner');
@@ -528,6 +530,13 @@
 										<span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: {rowColor(rowItem)};"></span>
 									{/if}
 									<span class="font-semibold text-gray-800 dark:text-gray-200 truncate text-xs flex-1 min-w-0" title={rowLabel(rowItem)}>{rowLabel(rowItem)}</span>
+									{#if !transpose && !isPerson(rowItem) && eventsWithImages?.has((rowItem as Event).id)}
+										<span class="flex-shrink-0 text-gray-300 dark:text-gray-600 group-hover:opacity-0 transition-opacity" title="Has receipt photos">
+											<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+											</svg>
+										</span>
+									{/if}
 									<!-- Hover-only destructive actions (edit mode only) -->
 									{#if isOwner && mode === 'edit'}
 										<div class="absolute right-0 top-1/2 -translate-y-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 hover-show transition-opacity bg-white dark:bg-gray-900 pl-1">
