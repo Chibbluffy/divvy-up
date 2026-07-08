@@ -195,6 +195,14 @@ export function reorderPeople(divvyId: string, orderedIds: string[]) {
 	updateMany();
 }
 
+export function reorderEvents(divvyId: string, orderedIds: string[]) {
+	const stmt = getDb().prepare('UPDATE events SET sort_order = ? WHERE id = ? AND divvy_id = ?');
+	const updateMany = getDb().transaction(() => {
+		orderedIds.forEach((id, index) => stmt.run(index, id, divvyId));
+	});
+	updateMany();
+}
+
 // --- Events ---
 
 export function getEvents(divvyId: string): Event[] {

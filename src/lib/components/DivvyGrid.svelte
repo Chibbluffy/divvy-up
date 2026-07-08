@@ -29,10 +29,86 @@
 		onSplitRemaining: (eventId: string) => void;
 		onSetAllRow: (item: Person | Event, present: boolean) => void;
 		onSetAllCol: (item: Person | Event, present: boolean) => void;
+		onReorderEvents?: (orderedIds: string[]) => void;
 	} = $props();
 
 	const isOwner = $derived(accessLevel === 'owner');
 	const canEdit = $derived(accessLevel === 'owner' || accessLevel === 'edit');
+
+	// Drag-to-reorder state (events only, !transpose, owner, edit mode)
+	let dragGroupKey = $state<string | null>(null);
+	let dragOverGroupKey = $state<string | null>(null);
+	let dropPosition = $state<'before' | 'after'>('after');
+
+	function evGroupKey(item: Person | Event): string {
+		if (isPerson(item)) return item.id;
+		const ev = item as Event;
+		return ev.parent_event_id ?? ev.id;
+	}
+
+	function handleDragStart(e: DragEvent, rowItem: Person | Event) {
+		dragGroupKey = evGroupKey(rowItem);
+		if (e.dataTransfer) {
+			e.dataTransfer.effectAllowed = 'move';
+			e.dataTransfer.setData('text/plain', dragGroupKey);
+		}
+	}
+
+	function handleDragOver(e: DragEvent, rowItem: Person | Event) {
+		if (!dragGroupKey) return;
+		const overKey = evGroupKey(rowItem);
+		if (overKey === dragGroupKey) return;
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+		dragOverGroupKey = overKey;
+		const target = e.currentTarget as HTMLElement;
+		const rect = target.getBoundingClientRect();
+		dropPosition = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+	}
+
+	function handleDragLeave(e: DragEvent) {
+		const related = e.relatedTarget as HTMLElement | null;
+		if (!(e.currentTarget as HTMLElement).contains(related)) {
+			dragOverGroupKey = null;
+		}
+	}
+
+	function handleDrop(e: DragEvent, rowItem: Person | Event) {
+		e.preventDefault();
+		if (!dragGroupKey || !onReorderEvents) return;
+		const overKey = evGroupKey(rowItem);
+		if (overKey === dragGroupKey) { dragGroupKey = null; dragOverGroupKey = null; return; }
+
+		// Ordered unique group keys from current visible order
+		const seen = new Set<string>();
+		const keys: string[] = [];
+		for (const r of rowItems) {
+			const k = evGroupKey(r);
+			if (!seen.has(k)) { seen.add(k); keys.push(k); }
+		}
+
+		const fromKey = dragGroupKey;
+		const filtered = keys.filter(k => k !== fromKey);
+		const insertAt = filtered.indexOf(overKey) + (dropPosition === 'after' ? 1 : 0);
+		filtered.splice(insertAt, 0, fromKey);
+
+		// Expand group keys → ordered visible event IDs
+		const orderedIds: string[] = [];
+		for (const k of filtered) {
+			for (const r of rowItems) {
+				if (evGroupKey(r) === k) orderedIds.push((r as Event).id);
+			}
+		}
+
+		dragGroupKey = null;
+		dragOverGroupKey = null;
+		onReorderEvents(orderedIds);
+	}
+
+	function handleDragEnd() {
+		dragGroupKey = null;
+		dragOverGroupKey = null;
+	}
 
 	// In default mode: rows=events, cols=people. Transposed: rows=people, cols=events.
 	const rowItems = $derived(transpose ? visiblePeople : visibleEvents);
@@ -415,7 +491,19 @@
 			</colgroup>
 			<tbody>
 				{#each rowItems as rowItem (isPerson(rowItem) ? rowItem.id : rowItem.id)}
-					<tr class="group hover:bg-gray-50/40 dark:hover:bg-gray-700/40 transition-colors">
+					{@const canDrag = isOwner && !transpose && mode === 'edit' && !!onReorderEvents}
+					{@const isRowDragging = canDrag && dragGroupKey !== null && evGroupKey(rowItem) === dragGroupKey}
+					{@const isDropTarget = canDrag && dragOverGroupKey !== null && evGroupKey(rowItem) === dragOverGroupKey}
+					<tr
+						class="group hover:bg-gray-50/40 dark:hover:bg-gray-700/40 transition-colors {isRowDragging ? 'opacity-30' : ''}"
+						style="{isDropTarget && dropPosition === 'before' ? 'box-shadow: inset 0 2px 0 #6366f1;' : ''}{isDropTarget && dropPosition === 'after' ? 'box-shadow: inset 0 -2px 0 #6366f1;' : ''}"
+						draggable={canDrag || undefined}
+						ondragstart={canDrag ? (e) => handleDragStart(e, rowItem) : undefined}
+						ondragover={canDrag ? (e) => handleDragOver(e, rowItem) : undefined}
+						ondragleave={canDrag ? handleDragLeave : undefined}
+						ondrop={canDrag ? (e) => handleDrop(e, rowItem) : undefined}
+						ondragend={canDrag ? handleDragEnd : undefined}
+					>
 						<!-- Row label -->
 						<td class="sticky left-0 z-10 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800 border-b border-r border-gray-200 dark:border-gray-700 p-0 relative" style="min-width: {rowLabelW}px; max-width: {rowLabelW}px;">
 							<div
@@ -426,6 +514,15 @@
 							<div class="px-3 py-1.5 flex flex-col gap-0.5 min-w-0">
 								<!-- Name + hover actions row -->
 								<div class="flex items-center gap-1 min-w-0 relative">
+									{#if canDrag}
+										<span class="flex-shrink-0 text-gray-300 dark:text-gray-600 cursor-grab active:cursor-grabbing" title="Drag to reorder">
+											<svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+												<circle cx="9" cy="5" r="1.8"/><circle cx="15" cy="5" r="1.8"/>
+												<circle cx="9" cy="12" r="1.8"/><circle cx="15" cy="12" r="1.8"/>
+												<circle cx="9" cy="19" r="1.8"/><circle cx="15" cy="19" r="1.8"/>
+											</svg>
+										</span>
+									{/if}
 									{#if rowColor(rowItem)}
 										<span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: {rowColor(rowItem)};"></span>
 									{/if}

@@ -248,6 +248,29 @@
 		}
 	}
 
+	async function reorderEvents(orderedVisibleIds: string[]) {
+		// orderedVisibleIds = children + standalones in new display order (parents excluded from grid).
+		// Expand to a full ordered list including parents: for each visible event, prepend its
+		// parent the first time we encounter that parent group.
+		const placedParents = new Set<string>();
+		const fullOrder: string[] = [];
+		for (const id of orderedVisibleIds) {
+			const ev = events.find(e => e.id === id);
+			if (!ev) continue;
+			if (ev.parent_event_id && !placedParents.has(ev.parent_event_id)) {
+				fullOrder.push(ev.parent_event_id);
+				placedParents.add(ev.parent_event_id);
+			}
+			fullOrder.push(id);
+		}
+		// Update local sort_orders
+		events = events.map(e => {
+			const idx = fullOrder.indexOf(e.id);
+			return idx === -1 ? e : { ...e, sort_order: idx };
+		}).sort((a, b) => a.sort_order - b.sort_order);
+		await api('PATCH', '/events', { order: fullOrder });
+	}
+
 	// Intersections
 	async function togglePresence(eventId: string, personId: string) {
 		const ix = intersections.find((i) => i.event_id === eventId && i.person_id === personId);
@@ -703,7 +726,11 @@
 					{accessLevel}
 					onEditPerson={(p) => { editingPerson = p; showPersonModal = true; }}
 					onDeletePerson={deletePerson}
-					onEditEvent={(e) => { editingEvent = e; showEventModal = true; }}
+					onEditEvent={(e) => {
+					// Child events: open the parent for editing instead
+					const target = e.parent_event_id ? (events.find(ev => ev.id === e.parent_event_id) ?? e) : e;
+					editingEvent = target; showEventModal = true;
+				}}
 					onDeleteEvent={deleteEvent}
 					onDuplicateEvent={duplicateEvent}
 					onTogglePresence={togglePresence}
@@ -715,6 +742,7 @@
 					onSplitRemaining={splitRemaining}
 					onSetAllRow={setAllInRow}
 					onSetAllCol={setAllInCol}
+					onReorderEvents={reorderEvents}
 				/>
 			{/if}
 		{/if}

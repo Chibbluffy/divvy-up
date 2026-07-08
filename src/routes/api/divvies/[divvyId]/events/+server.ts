@@ -1,6 +1,6 @@
 // Copyright (c) 2025–2026 Tom Wan (chibbluffy@protonmail.com). Open source.
 import { json, error } from '@sveltejs/kit';
-import { getDivvyById, getAccessLevel, getEvents, createEvent, generateId } from '$lib/server/db';
+import { getDivvyById, getAccessLevel, getEvents, createEvent, generateId, reorderEvents } from '$lib/server/db';
 import type { RequestHandler } from './$types';
 
 function requireOwner(divvyId: string, token: string) {
@@ -34,4 +34,13 @@ export const POST: RequestHandler = async ({ params, url, request }) => {
 	);
 
 	return json({ event });
+};
+
+export const PATCH: RequestHandler = async ({ params, url, request }) => {
+	const token = url.searchParams.get('t') ?? '';
+	requireOwner(params.divvyId, token);
+	const body = await request.json().catch(() => null);
+	if (!Array.isArray(body?.order)) throw error(400, 'order array required');
+	reorderEvents(params.divvyId, body.order);
+	return json({ ok: true });
 };
