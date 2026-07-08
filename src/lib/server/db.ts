@@ -61,7 +61,8 @@ function initSchema(db: Database.Database) {
       created_at INTEGER NOT NULL
     )
   `);
-	// Migrate existing databases: add parent_event_id if missing
+	// Migrate existing databases: add missing columns
+	try { db.exec(`ALTER TABLE events ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`); } catch {}
 	try { db.exec(`ALTER TABLE events ADD COLUMN parent_event_id TEXT REFERENCES events(id) ON DELETE SET NULL`); } catch {}
 	db.exec(`
     CREATE TABLE IF NOT EXISTS payments (
