@@ -71,6 +71,7 @@ export interface SettlementBalance {
 	totalShouldPay: number;
 	net: number;
 	groupMemberNames?: string[];
+	groupMemberIds?: string[];
 	isGroupMember?: boolean;
 	groupLeadId?: string;
 }

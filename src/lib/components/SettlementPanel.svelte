@@ -136,6 +136,12 @@
 		<h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Balance summary</h3>
 		<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 			{#each settlement.balances.filter(b => !b.isGroupMember) as bal}
+				{@const leadTotal = getPersonTotal(bal.personId, events, intersections)}
+				{@const memberTotals = bal.groupMemberIds?.map(id => getPersonTotal(id, events, intersections)) ?? []}
+				{@const combinedTotal = leadTotal + memberTotals.reduce((s, t) => s + t, 0)}
+				{@const totalStr = memberTotals.length
+					? `${formatCurrency(leadTotal)} ${memberTotals.map(t => `(+${formatCurrency(t)})`).join(' ')} = ${formatCurrency(combinedTotal)}`
+					: formatCurrency(leadTotal)}
 				<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center gap-3">
 					<span class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style="background-color: {bal.color};">
 						{bal.personName[0].toUpperCase()}
@@ -145,7 +151,9 @@
 						{#if bal.groupMemberNames?.length}
 							<p class="text-xs text-indigo-500 dark:text-indigo-400 truncate">+ {bal.groupMemberNames.join(', ')}</p>
 						{/if}
-						<p class="text-xs text-gray-500 dark:text-gray-400">Total: {formatCurrency(getPersonTotal(bal.personId, events, intersections))}</p>
+						<p class="text-xs text-gray-500 dark:text-gray-400 truncate" title="Total: {totalStr}">
+							Total: {totalStr}
+						</p>
 					</div>
 					<div class="text-right flex-shrink-0">
 						{#if bal.net > 0.005}

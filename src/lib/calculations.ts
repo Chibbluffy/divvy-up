@@ -118,7 +118,7 @@ export function calculateSettlement(
 			totalOwed: Math.max(0, outstanding[p.id] ?? 0),
 			totalShouldPay: Math.max(0, -(outstanding[p.id] ?? 0)),
 			net: outstanding[p.id] ?? 0,
-			...(members.length > 0 && { groupMemberNames: members.map((m) => m.name) }),
+			...(members.length > 0 && { groupMemberNames: members.map((m) => m.name), groupMemberIds: members.map((m) => m.id) }),
 			...(p.group_lead_person_id && { isGroupMember: true, groupLeadId: p.group_lead_person_id })
 		};
 	});
