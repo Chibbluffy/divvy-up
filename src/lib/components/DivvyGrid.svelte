@@ -21,7 +21,7 @@
 		onDeleteEvent: (id: string) => void;
 		onDuplicateEvent: (id: string) => void;
 		onTogglePresence: (eventId: string, personId: string) => void;
-		onUpdateAmount: (eventId: string, personId: string, amount: number | null, taxIncluded: boolean) => void;
+		onUpdateAmount: (eventId: string, personId: string, amount: number | null, taxIncluded: boolean, expression: string | null) => void;
 		onTogglePaid: (eventId: string, personId: string) => void;
 		onMarkAllPaid: (personId: string, marked: boolean) => void;
 		onMarkAllPaidEvent: (eventId: string, marked: boolean) => void;
@@ -530,7 +530,7 @@
 									{canEdit}
 									shareAmount={eventShares[ev.id]?.[person.id] ?? 0}
 									onTogglePresence={() => onTogglePresence(ev.id, person.id)}
-									onUpdateAmount={(amount, taxIncluded) => onUpdateAmount(ev.id, person.id, amount, taxIncluded)}
+									onUpdateAmount={(amount, taxIncluded, expression) => onUpdateAmount(ev.id, person.id, amount, taxIncluded, expression)}
 									onTogglePaid={() => onTogglePaid(ev.id, person.id)}
 									onUpdateNote={(note) => onUpdateNote(ev.id, person.id, note)}
 								/>
