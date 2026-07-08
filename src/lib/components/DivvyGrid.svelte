@@ -9,7 +9,8 @@
 		visiblePeople, visibleEvents, accessLevel,
 		onEditPerson, onDeletePerson, onEditEvent, onDeleteEvent,
 		onDuplicateEvent, onTogglePresence, onUpdateAmount, onTogglePaid,
-		onMarkAllPaid, onMarkAllPaidEvent, onUpdateNote, onSplitRemaining, onSetAllRow, onSetAllCol
+		onMarkAllPaid, onMarkAllPaidEvent, onUpdateNote, onSplitRemaining, onSetAllRow, onSetAllCol,
+		onReorderEvents = undefined
 	}: {
 		people: Person[]; events: Event[]; intersections: Intersection[];
 		mode: 'edit' | 'payment'; transpose: boolean;
