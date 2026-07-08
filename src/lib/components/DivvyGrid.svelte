@@ -188,10 +188,8 @@
 	function hasRemaining(rowItem: Person | Event): boolean {
 		if (transpose) return false;
 		const ev = rowItem as Event;
-		if (ev.type !== 'custom_amount') return false;
-		const evIxs = intersections.filter(i => i.event_id === ev.id);
-		const hasEmpty = evIxs.some(i => i.custom_amount === null);
-		return hasEmpty;
+		if (ev.type !== 'custom_amount' || !ev.total_cost) return false;
+		return getRemainingAmount(ev, intersections) > 0.005;
 	}
 
 	const tableWidth = $derived(rowLabelW + colItems.length * COL_W + TOTAL_W);
@@ -487,7 +485,7 @@
 									<button
 										onclick={() => onSplitRemaining((rowItem as Event).id)}
 										class="ml-4 mt-0.5 text-left text-xs font-medium text-indigo-600 dark:text-indigo-300 hover:text-indigo-800 dark:hover:text-indigo-100 hover:underline transition-colors"
-									>÷ Split remaining equally</button>
+									>÷ Assign remaining tip…</button>
 								{/if}
 								<!-- Select all in this row -->
 								{#if canEdit && mode === 'edit' && rowIsEvenSplitRelevant(rowItem)}

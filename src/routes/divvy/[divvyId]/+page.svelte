@@ -7,6 +7,7 @@
 	import EventModal from '$lib/components/EventModal.svelte';
 	import ShareModal from '$lib/components/ShareModal.svelte';
 	import SettlementPanel from '$lib/components/SettlementPanel.svelte';
+	import AssignRemainingModal from '$lib/components/AssignRemainingModal.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -38,6 +39,7 @@
 	let hiddenEvents = $state<Set<string>>(new Set());
 	let editingPerson = $state<Person | null>(null);
 	let editingEvent = $state<Event | null>(null);
+	let assignRemainingEvent = $state<Event | null>(null);
 	let editingDivvyName = $state(false);
 	let divvyNameDraft = $state(divvy.name);
 	let darkMode = $state(false);
@@ -357,31 +359,62 @@
 		));
 	}
 
-	async function splitRemaining(eventId: string) {
+	function splitRemaining(eventId: string) {
 		const event = events.find(e => e.id === eventId);
 		if (!event || event.type !== 'custom_amount') return;
-		const eventIxs = intersections.filter(i => i.event_id === eventId);
-		const filled = eventIxs.filter(i => i.custom_amount !== null);
-		const empty = eventIxs.filter(i => i.custom_amount === null);
-		if (empty.length === 0) return;
+		assignRemainingEvent = event;
+	}
 
-		const { getFinalAmount } = await import('$lib/calculations');
-		const usedTotal = filled.reduce((s, i) =>
-			s + getFinalAmount(i.custom_amount, i.tax_included, event.tax_percentage), 0);
-		const remaining = event.total_cost - usedTotal;
+	async function applyTipAssignment(personIds: string[]) {
+		const event = assignRemainingEvent;
+		if (!event || personIds.length === 0) { assignRemainingEvent = null; return; }
+		assignRemainingEvent = null;
+
+		const { getRemainingAmount } = await import('$lib/calculations');
+		const remaining = getRemainingAmount(event, intersections);
 		if (remaining < 0.005) return;
 
-		// `remaining` is already a post-tax dollar amount (event.total_cost minus
-		// getFinalAmount sums). Store with tax_included: true so getFinalAmount
-		// doesn't apply the tax rate a second time and push the total over budget.
-		// Any leftover cents from rounding show in the "X¢ left to assign" indicator.
-		const perPerson = Math.round((remaining / empty.length) * 100) / 100;
-		intersections = intersections.map(i =>
-			i.event_id === eventId && i.custom_amount === null ? { ...i, custom_amount: perPerson, tax_included: true } : i
-		);
-		await Promise.all(empty.map(i =>
-			api('PATCH', `/intersections/${eventId}/${i.person_id}`, { custom_amount: perPerson, tax_included: true })
-		));
+		const perPerson = Math.round((remaining / personIds.length) * 100) / 100;
+
+		function fmtTip(x: number): string {
+			const r = Math.round(x * 100) / 100;
+			return r === Math.floor(r) ? String(r) : r.toFixed(2);
+		}
+		const tipStr = fmtTip(perPerson);
+
+		const eventIxs = intersections.filter(i => i.event_id === event.id);
+		const patches: Promise<unknown>[] = [];
+
+		for (const personId of personIds) {
+			const ix = eventIxs.find(i => i.person_id === personId);
+			let newExpression: string | null;
+			let newAmount: number;
+			let taxIncluded: boolean;
+
+			if (ix?.custom_amount != null) {
+				const baseExpr = ix.custom_amount_expression ?? String(ix.custom_amount);
+				newExpression = `${baseExpr}+${tipStr}`;
+				newAmount = Math.round((ix.custom_amount + perPerson) * 100) / 100;
+				taxIncluded = ix.tax_included;
+			} else {
+				newExpression = null;
+				newAmount = perPerson;
+				taxIncluded = true;
+			}
+
+			intersections = intersections.map(i =>
+				i.event_id === event.id && i.person_id === personId
+					? { ...i, custom_amount: newAmount, custom_amount_expression: newExpression, tax_included: taxIncluded }
+					: i
+			);
+			patches.push(api('PATCH', `/intersections/${event.id}/${personId}`, {
+				custom_amount: newAmount,
+				custom_amount_expression: newExpression,
+				tax_included: taxIncluded
+			}));
+		}
+
+		await Promise.all(patches);
 	}
 
 	async function logPayment(fromPersonId: string, toPersonId: string, amount: number, note: string | null) {
@@ -716,5 +749,15 @@
 	<ShareModal
 		divvy={divvy}
 		onClose={() => showShareModal = false}
+	/>
+{/if}
+
+{#if assignRemainingEvent}
+	<AssignRemainingModal
+		event={assignRemainingEvent}
+		{people}
+		{intersections}
+		onApply={applyTipAssignment}
+		onClose={() => assignRemainingEvent = null}
 	/>
 {/if}
