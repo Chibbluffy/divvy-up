@@ -47,13 +47,16 @@ export const POST: RequestHandler = async ({ params, url, request }) => {
 	let formData: FormData;
 	try {
 		formData = await request.formData();
-	} catch {
-		throw error(400, 'Invalid multipart body');
+	} catch (e) {
+		const msg = e instanceof Error ? e.message : String(e);
+		console.error('[upload] formData parse failed:', msg, 'content-type:', request.headers.get('content-type'));
+		throw error(400, `Invalid multipart body: ${msg}`);
 	}
 
 	const file = formData.get('image');
 	if (!(file instanceof File)) throw error(400, 'No image file provided');
-	if (!ACCEPTED_TYPES.has(file.type)) throw error(415, 'Unsupported image type');
+	console.log('[upload] file type:', file.type, 'size:', file.size);
+	if (!ACCEPTED_TYPES.has(file.type)) throw error(415, `Unsupported image type: ${file.type}`);
 	if (file.size > MAX_BYTES) throw error(413, 'Image too large (max 20 MB)');
 
 	const buffer = Buffer.from(await file.arrayBuffer());
