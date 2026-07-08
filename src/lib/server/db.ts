@@ -79,6 +79,7 @@ function initSchema(db: Database.Database) {
       person_id TEXT NOT NULL REFERENCES people(id) ON DELETE CASCADE,
       present INTEGER NOT NULL DEFAULT 0,
       custom_amount REAL,
+      custom_amount_expression TEXT,
       tax_included INTEGER NOT NULL DEFAULT 0,
       mark TEXT NOT NULL DEFAULT 'unmarked' CHECK (mark IN ('unmarked', 'marked')),
       note TEXT,
@@ -91,6 +92,8 @@ function initSchema(db: Database.Database) {
 	try { db.exec(`ALTER TABLE intersections DROP COLUMN paid_status`); } catch {}
 	// Migrate: add note column
 	try { db.exec(`ALTER TABLE intersections ADD COLUMN note TEXT`); } catch {}
+	// Migrate: add expression column
+	try { db.exec(`ALTER TABLE intersections ADD COLUMN custom_amount_expression TEXT`); } catch {}
 }
 
 // --- Divvies ---
@@ -309,19 +312,21 @@ export function upsertIntersection(
 	present: boolean,
 	customAmount: number | null,
 	taxIncluded: boolean,
-	mark: string = 'unmarked'
+	mark: string = 'unmarked',
+	customAmountExpression: string | null = null
 ) {
 	getDb()
 		.prepare(
-			`INSERT INTO intersections (id, event_id, person_id, present, custom_amount, tax_included, mark)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
+			`INSERT INTO intersections (id, event_id, person_id, present, custom_amount, custom_amount_expression, tax_included, mark)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(event_id, person_id) DO UPDATE SET
          present = excluded.present,
          custom_amount = excluded.custom_amount,
+         custom_amount_expression = excluded.custom_amount_expression,
          tax_included = excluded.tax_included,
          mark = excluded.mark`
 		)
-		.run(id, eventId, personId, present ? 1 : 0, customAmount, taxIncluded ? 1 : 0, mark);
+		.run(id, eventId, personId, present ? 1 : 0, customAmount, customAmountExpression, taxIncluded ? 1 : 0, mark);
 }
 
 export function updateIntersectionPresence(eventId: string, personId: string, present: boolean) {
@@ -334,13 +339,14 @@ export function updateIntersectionAmount(
 	eventId: string,
 	personId: string,
 	customAmount: number | null,
-	taxIncluded: boolean
+	taxIncluded: boolean,
+	customAmountExpression: string | null = null
 ) {
 	getDb()
 		.prepare(
-			`UPDATE intersections SET custom_amount = ?, tax_included = ? WHERE event_id = ? AND person_id = ?`
+			`UPDATE intersections SET custom_amount = ?, custom_amount_expression = ?, tax_included = ? WHERE event_id = ? AND person_id = ?`
 		)
-		.run(customAmount, taxIncluded ? 1 : 0, eventId, personId);
+		.run(customAmount, customAmountExpression, taxIncluded ? 1 : 0, eventId, personId);
 }
 
 export function updateIntersectionPaid(eventId: string, personId: string, mark: string) {
@@ -465,7 +471,7 @@ export function forkDivvy(
 		for (const ix of intersections) {
 			const newPersonId = personIdMap.get(ix.person_id);
 			if (newPersonId) {
-				upsertIntersection(generateId(), newEventId, newPersonId, ix.present === 1, ix.custom_amount, ix.tax_included === 1, 'unmarked');
+				upsertIntersection(generateId(), newEventId, newPersonId, ix.present === 1, ix.custom_amount, ix.tax_included === 1, 'unmarked', ix.custom_amount_expression ?? null);
 			}
 		}
 	}

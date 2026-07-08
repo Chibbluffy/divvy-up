@@ -27,7 +27,11 @@ export const PATCH: RequestHandler = async ({ params, url, request }) => {
 				: typeof body.custom_amount === 'number'
 					? body.custom_amount
 					: parseFloat(body.custom_amount);
-		updateIntersectionAmount(eventId, personId, isNaN(amount as number) ? null : (amount as number | null), body.tax_included === true);
+		const expression =
+			body.custom_amount_expression && typeof body.custom_amount_expression === 'string'
+				? body.custom_amount_expression
+				: null;
+		updateIntersectionAmount(eventId, personId, isNaN(amount as number) ? null : (amount as number | null), body.tax_included === true, expression);
 	} else if ('mark' in body && ['marked', 'unmarked'].includes(body.mark)) {
 		updateIntersectionPaid(eventId, personId, body.mark);
 	} else if ('note' in body && (body.note === null || typeof body.note === 'string')) {

@@ -83,7 +83,7 @@
 		for (const event of events) {
 			intersections = [
 				...intersections,
-				{ id: `${event.id}:${person.id}`, event_id: event.id, person_id: person.id, present: false, custom_amount: null, tax_included: false, mark: 'unmarked', note: null }
+				{ id: `${event.id}:${person.id}`, event_id: event.id, person_id: person.id, present: false, custom_amount: null, custom_amount_expression: null, tax_included: false, mark: 'unmarked', note: null }
 			];
 		}
 	}
@@ -106,7 +106,7 @@
 		for (const person of people) {
 			intersections = [
 				...intersections,
-				{ id: `${event.id}:${person.id}`, event_id: event.id, person_id: person.id, present: false, custom_amount: null, tax_included: false, mark: 'unmarked', note: null }
+				{ id: `${event.id}:${person.id}`, event_id: event.id, person_id: person.id, present: false, custom_amount: null, custom_amount_expression: null, tax_included: false, mark: 'unmarked', note: null }
 			];
 		}
 	}
@@ -200,7 +200,7 @@
 			for (const person of people) {
 				intersections = [...intersections, {
 					id: `${newParent.id}:${person.id}`, event_id: newParent.id, person_id: person.id,
-					present: false, custom_amount: null, tax_included: false, mark: 'unmarked', note: null
+					present: false, custom_amount: null, custom_amount_expression: null, tax_included: false, mark: 'unmarked', note: null
 				}];
 			}
 
@@ -217,7 +217,7 @@
 					const keepPresent = child.type === 'even_split' ? (srcIx?.present ?? false) : false;
 					intersections = [...intersections, {
 						id: `${newChild.id}:${person.id}`, event_id: newChild.id, person_id: person.id,
-						present: keepPresent, custom_amount: null, tax_included: false, mark: 'unmarked', note: null
+						present: keepPresent, custom_amount: null, custom_amount_expression: null, tax_included: false, mark: 'unmarked', note: null
 					}];
 				}
 			}
@@ -232,7 +232,7 @@
 			const keepPresent = source.type === 'even_split' ? (srcIx?.present ?? false) : false;
 			intersections = [
 				...intersections,
-				{ id: `${event.id}:${person.id}`, event_id: event.id, person_id: person.id, present: keepPresent, custom_amount: null, tax_included: false, mark: 'unmarked', note: null }
+				{ id: `${event.id}:${person.id}`, event_id: event.id, person_id: person.id, present: keepPresent, custom_amount: null, custom_amount_expression: null, tax_included: false, mark: 'unmarked', note: null }
 			];
 		}
 	}
@@ -253,11 +253,11 @@
 		}
 	}
 
-	async function updateAmount(eventId: string, personId: string, amount: number | null, taxIncluded: boolean) {
+	async function updateAmount(eventId: string, personId: string, amount: number | null, taxIncluded: boolean, expression: string | null) {
 		intersections = intersections.map((i) =>
-			i.event_id === eventId && i.person_id === personId ? { ...i, custom_amount: amount, tax_included: taxIncluded } : i
+			i.event_id === eventId && i.person_id === personId ? { ...i, custom_amount: amount, custom_amount_expression: expression, tax_included: taxIncluded } : i
 		);
-		await api('PATCH', `/intersections/${eventId}/${personId}`, { custom_amount: amount, tax_included: taxIncluded });
+		await api('PATCH', `/intersections/${eventId}/${personId}`, { custom_amount: amount, custom_amount_expression: expression, tax_included: taxIncluded });
 	}
 
 	async function togglePaid(eventId: string, personId: string) {

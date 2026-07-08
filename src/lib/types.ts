@@ -45,6 +45,7 @@ export interface Intersection {
 	person_id: string;
 	present: boolean;
 	custom_amount: number | null;
+	custom_amount_expression: string | null;
 	tax_included: boolean;
 	mark: MarkStatus;
 	note: string | null;

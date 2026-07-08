@@ -12,14 +12,32 @@
 		mode: 'edit' | 'payment'; canEdit: boolean;
 		shareAmount: number;
 		onTogglePresence: () => void;
-		onUpdateAmount: (amount: number | null, taxIncluded: boolean) => void;
+		onUpdateAmount: (amount: number | null, taxIncluded: boolean, expression: string | null) => void;
 		onTogglePaid: () => void;
 		onUpdateNote: (note: string | null) => void;
 	} = $props();
 
+	function evaluateExpression(expr: string): number | null {
+		const trimmed = expr.trim();
+		if (!trimmed) return null;
+		if (!/^[\d\s.+*]+$/.test(trimmed)) return null;
+		try {
+			const terms = trimmed.split('+').map(term => {
+				const factors = term.split('*').map(f => parseFloat(f.trim()));
+				if (factors.some(isNaN)) return NaN;
+				return factors.reduce((a, b) => a * b, 1);
+			});
+			if (terms.some(isNaN)) return null;
+			const result = terms.reduce((a, b) => a + b, 0);
+			return isFinite(result) && result >= 0 ? Math.round(result * 1000) / 1000 : null;
+		} catch {
+			return null;
+		}
+	}
+
 	let cellEl = $state<HTMLDivElement | null>(null);
 	let editing = $state(false);
-	let inputValue = $state<number | null>(null);
+	let inputValue = $state('');
 	let taxIncluded = $state(false);
 	let popupStyle = $state('');
 	let popupInputEl = $state<HTMLInputElement | null>(null);
@@ -36,7 +54,7 @@
 	});
 
 	$effect(() => {
-		inputValue = ix?.custom_amount ?? null;
+		inputValue = ix?.custom_amount_expression ?? (ix?.custom_amount != null ? String(ix.custom_amount) : '');
 		taxIncluded = ix?.tax_included ?? false;
 	});
 
@@ -73,15 +91,26 @@
 		editing = true;
 	}
 
+	const evaluatedAmount = $derived(evaluateExpression(inputValue));
+	const hasOperator = $derived(/[+*]/.test(inputValue));
+
 	function commitAmount() {
 		editing = false;
-		const amount = (inputValue !== null && !Number.isNaN(inputValue)) ? inputValue : null;
-		onUpdateAmount(amount, taxIncluded);
+		if (!inputValue.trim()) {
+			onUpdateAmount(null, taxIncluded, null);
+			return;
+		}
+		const amount = evaluatedAmount;
+		const expression = hasOperator ? inputValue.trim() : null;
+		onUpdateAmount(amount, taxIncluded, expression);
 	}
 
 	function onKey(e: KeyboardEvent) {
 		if (e.key === 'Enter') commitAmount();
-		if (e.key === 'Escape') { editing = false; inputValue = customAmount; }
+		if (e.key === 'Escape') {
+			editing = false;
+			inputValue = ix?.custom_amount_expression ?? (customAmount != null ? String(customAmount) : '');
+		}
 	}
 
 	function openNote(e: MouseEvent) {
@@ -109,7 +138,13 @@
 
 	function onWindowPointerDown(e: PointerEvent) {
 		if (editing && !(e.target as HTMLElement).closest('.cell-popup')) {
-			commitAmount();
+			if (inputValue.trim() && evaluatedAmount === null) {
+				// invalid expression — revert silently
+				editing = false;
+				inputValue = ix?.custom_amount_expression ?? (customAmount != null ? String(customAmount) : '');
+			} else {
+				commitAmount();
+			}
 		}
 		if (noting && !(e.target as HTMLElement).closest('.cell-popup')) {
 			commitNote();
@@ -179,6 +214,7 @@
 			<button
 				disabled={!canEdit}
 				onclick={openEdit}
+				title={ix?.custom_amount_expression ?? undefined}
 				class="w-full h-full min-h-[40px] flex items-center justify-center {canEdit ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}"
 			>
 				{#if customAmount !== null}
@@ -225,14 +261,19 @@
 		<p class="text-xs font-semibold text-gray-600 dark:text-gray-300 truncate">{person.name}</p>
 		<input
 			bind:this={popupInputEl}
-			type="number"
+			type="text"
+			inputmode="decimal"
 			bind:value={inputValue}
+			oninput={(e) => { e.currentTarget.value = e.currentTarget.value.replace(/[^0-9.+* ]/g, ''); inputValue = e.currentTarget.value; }}
 			onkeydown={onKey}
-			step="0.01"
-			min="0"
-			placeholder="0.00"
+			placeholder="e.g. 12.50 + 3*4"
 			class="w-full text-center text-sm font-medium border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
 		/>
+		{#if evaluatedAmount !== null && hasOperator}
+			<p class="text-xs text-indigo-600 dark:text-indigo-400 text-center">= {formatCurrency(evaluatedAmount)}</p>
+		{:else if inputValue.trim() && evaluatedAmount === null}
+			<p class="text-xs text-red-500 text-center">Invalid expression</p>
+		{/if}
 		{#if event.tax_percentage && event.tax_percentage > 0}
 			<label class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
 				<input
@@ -243,21 +284,22 @@
 				/>
 				Add tax ({event.tax_percentage}%)
 			</label>
-			{#if inputValue !== null && !Number.isNaN(inputValue) && inputValue > 0}
+			{#if evaluatedAmount !== null && evaluatedAmount > 0}
 				{#if !taxIncluded}
-					<p class="text-xs text-indigo-600 dark:text-indigo-400">→ {formatCurrency(inputValue * (1 + event.tax_percentage / 100))} total</p>
+					<p class="text-xs text-indigo-600 dark:text-indigo-400">→ {formatCurrency(evaluatedAmount * (1 + event.tax_percentage / 100))} total</p>
 				{:else}
-					<p class="text-xs text-gray-500 dark:text-gray-400">= {formatCurrency(inputValue)} (tax incl.)</p>
+					<p class="text-xs text-gray-500 dark:text-gray-400">= {formatCurrency(evaluatedAmount)} (tax incl.)</p>
 				{/if}
 			{/if}
 		{/if}
 		<div class="flex gap-1.5">
 			<button
 				onclick={(e) => { e.stopPropagation(); commitAmount(); }}
-				class="flex-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1.5 rounded-lg font-medium"
+				disabled={inputValue.trim().length > 0 && evaluatedAmount === null}
+				class="flex-1 text-xs bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-2 py-1.5 rounded-lg font-medium"
 			>Save</button>
 			<button
-				onclick={(e) => { e.stopPropagation(); editing = false; inputValue = customAmount; }}
+				onclick={(e) => { e.stopPropagation(); editing = false; inputValue = ix?.custom_amount_expression ?? (customAmount != null ? String(customAmount) : ''); }}
 				class="flex-1 text-xs bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-300 px-2 py-1.5 rounded-lg font-medium"
 			>Cancel</button>
 		</div>
