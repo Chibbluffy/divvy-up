@@ -305,9 +305,6 @@
 	<!-- Event / group breakdown -->
 	<div class="mb-6">
 		<h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Breakdown</h3>
-		<div class="text-xs text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 mb-3">
-			The paid/due marks here come from the grid and are for organization only — they don't affect the balances or "who pays who" above. Use direct payments to reduce what someone owes.
-		</div>
 		<div class="space-y-3">
 			{#each eventGroups() as group}
 				{@const payer = getEventPayer(group.payerPersonId)}
@@ -341,7 +338,6 @@
 					<div class="divide-y divide-gray-50 dark:divide-gray-700">
 						{#each people as person}
 							{@const share = getPersonGroupShare(person.id, group)}
-							{@const status = getPersonGroupPaidStatus(person.id, group)}
 							{@const cellNotes = group.children
 								.map(child => ({ name: child.name, note: intersections.find(i => i.event_id === child.id && i.person_id === person.id)?.note ?? null }))
 								.filter(n => n.note !== null)}
@@ -366,9 +362,6 @@
 										{:else}
 											<span class="text-sm font-medium text-gray-800 dark:text-gray-200">{formatCurrency(share)}</span>
 										{/if}
-										<span class="text-xs font-medium w-16 text-right {status === 'marked' ? 'text-emerald-600 dark:text-emerald-400' : status === 'partial' ? 'text-amber-500 dark:text-amber-400' : 'text-red-500 dark:text-red-400'}">
-											{status === 'marked' ? '✓ paid' : status === 'partial' ? '½ partial' : '○ due'}
-										</span>
 									</div>
 									{#if cellNotes.length > 0}
 										<p class="text-xs italic text-gray-400 dark:text-gray-500 ml-8">
