@@ -16,7 +16,8 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd ~/divvy-up
-            git pull
+            git fetch origin main
+            git reset --hard origin/main
             npm ci
             npm run build
             npm prune --omit=dev
