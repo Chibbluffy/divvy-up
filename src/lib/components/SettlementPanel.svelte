@@ -120,17 +120,18 @@
 
 	// Returns expression display strings for custom_amount cells that have an expression.
 	// short: uses "+tax" abbreviation; full: uses "+X%tax" for title attribute.
-	function getExprDetail(personId: string, ev: Event): { short: string; full: string } | null {
+	function getExprDetail(personId: string, ev: Event): { exprShort: string; exprFull: string; finalStr: string } | null {
 		if (ev.type !== 'custom_amount') return null;
 		const ix = intersections.find(i => i.event_id === ev.id && i.person_id === personId);
 		if (!ix?.custom_amount_expression) return null;
 		const shares = calculateEventShare(ev, intersections);
 		const final = shares[personId] ?? 0;
-		const expr = '$' + ix.custom_amount_expression.replace(/\+/g, '+$');
+		const expr = '$' + ix.custom_amount_expression.replace(/\+/g, ' + $');
 		const hasTax = !ix.tax_included && ev.tax_percentage;
 		return {
-			short: `${expr}${hasTax ? '+tax' : ''}=${formatCurrency(final)}`,
-			full:  `${expr}${hasTax ? `+${ev.tax_percentage}%tax` : ''}=${formatCurrency(final)}`
+			exprShort: `${expr}${hasTax ? ' + tax' : ''}`,
+			exprFull:  `${expr}${hasTax ? ` + ${ev.tax_percentage}%tax` : ''}`,
+			finalStr: formatCurrency(final)
 		};
 	}
 
@@ -370,8 +371,9 @@
 														{@const childShares = calculateEventShare(child, intersections)}
 														{@const childExpr = getExprDetail(person.id, child)}
 														{#if (childShares[person.id] ?? 0) > 0.005}
-															{@const line = childExpr ? childExpr.short : formatCurrency(childShares[person.id])}
-															<div class="truncate max-w-[220px]" title="{child.name}: {childExpr ? childExpr.full : formatCurrency(childShares[person.id])}">{child.name}: {line}</div>
+															<div class="truncate max-w-[220px]" title="{child.name}: {childExpr ? `${childExpr.exprFull} = ${childExpr.finalStr}` : formatCurrency(childShares[person.id])}">
+																{child.name}: {#if childExpr}{childExpr.exprShort} = <span class="font-bold text-gray-700 dark:text-gray-200">{childExpr.finalStr}</span>{:else}{formatCurrency(childShares[person.id])}{/if}
+															</div>
 														{/if}
 													{/each}
 												</div>
@@ -380,9 +382,9 @@
 										{:else}
 											{@const exprDetail = getExprDetail(person.id, group.children[0])}
 											{#if exprDetail}
-												<span class="text-xs font-mono text-gray-700 dark:text-gray-300 max-w-[220px] truncate" title={exprDetail.full}>{exprDetail.short}</span>
+												<span class="text-xs font-mono text-gray-600 dark:text-gray-400 max-w-[220px] truncate" title="{exprDetail.exprFull} = {exprDetail.finalStr}">{exprDetail.exprShort} = <span class="font-bold text-gray-800 dark:text-gray-200">{exprDetail.finalStr}</span></span>
 											{:else}
-												<span class="text-sm font-medium text-gray-800 dark:text-gray-200">{formatCurrency(share)}</span>
+												<span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{formatCurrency(share)}</span>
 											{/if}
 										{/if}
 									</div>

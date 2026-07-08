@@ -29,7 +29,7 @@
 	let imagesByEvent = $state<Record<string, EventImage[]>>(groupImagesByEvent(data.eventImages));
 
 	// UI state
-	let activeTab = $state<'edit' | 'payment' | 'settlement'>('edit');
+	let activeTab = $state<'edit' | 'payment' | 'settlement'>(data.accessLevel === 'owner' ? 'edit' : 'settlement');
 	let transpose = $state(false);
 	let showPersonModal = $state(false);
 	let showEventModal = $state(false);
