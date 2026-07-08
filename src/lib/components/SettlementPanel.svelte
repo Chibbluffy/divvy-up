@@ -140,7 +140,7 @@
 				{@const memberTotals = bal.groupMemberIds?.map(id => getPersonTotal(id, events, intersections)) ?? []}
 				{@const combinedTotal = leadTotal + memberTotals.reduce((s, t) => s + t, 0)}
 				{@const totalStr = memberTotals.length
-					? `${formatCurrency(leadTotal)} ${memberTotals.map(t => `(+${formatCurrency(t)})`).join(' ')} = ${formatCurrency(combinedTotal)}`
+					? `${formatCurrency(combinedTotal)} = ${[leadTotal, ...memberTotals].map(t => formatCurrency(t)).join(' + ')}`
 					: formatCurrency(leadTotal)}
 				<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center gap-3">
 					<span class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style="background-color: {bal.color};">
