@@ -53,11 +53,6 @@
 		if (noting && notingEl) notingEl.focus();
 	});
 
-	$effect(() => {
-		inputValue = ix?.custom_amount_expression ?? (ix?.custom_amount != null ? String(ix.custom_amount) : '');
-		taxIncluded = ix?.tax_included ?? false;
-	});
-
 	const isPayer = $derived(event.payer_person_id === person.id);
 	const present = $derived(ix?.present ?? false);
 	const paidStatus = $derived(ix?.mark ?? 'unmarked');
@@ -78,6 +73,9 @@
 	function openEdit(e: MouseEvent) {
 		e.stopPropagation(); // prevent window click handler from immediately closing popup
 		if (!canEdit || !cellEl) return;
+		// Initialise fresh from ix every time the popup opens — no $effect needed
+		inputValue = ix?.custom_amount_expression ?? (ix?.custom_amount != null ? String(ix.custom_amount) : '');
+		taxIncluded = ix?.tax_included ?? false;
 		const rect = cellEl.getBoundingClientRect();
 		const isMobile = window.innerWidth < 640;
 		const minW = isMobile ? 200 : 160;
@@ -91,26 +89,32 @@
 		editing = true;
 	}
 
+	// For template display only (live preview, disabled state)
 	const evaluatedAmount = $derived(evaluateExpression(inputValue));
 	const hasOperator = $derived(/[+*]/.test(inputValue));
 
+	function revertInput() {
+		inputValue = ix?.custom_amount_expression ?? (customAmount != null ? String(customAmount) : '');
+		taxIncluded = ix?.tax_included ?? false;
+	}
+
 	function commitAmount() {
+		// Compute inline — avoids any Svelte 5 $derived read timing issues
+		const trimmed = inputValue.trim();
 		editing = false;
-		if (!inputValue.trim()) {
+		if (!trimmed) {
 			onUpdateAmount(null, taxIncluded, null);
 			return;
 		}
-		const amount = evaluatedAmount;
-		const expression = hasOperator ? inputValue.trim() : null;
+		const amount = evaluateExpression(trimmed);
+		if (amount === null) { revertInput(); return; }
+		const expression = /[+*]/.test(trimmed) ? trimmed : null;
 		onUpdateAmount(amount, taxIncluded, expression);
 	}
 
 	function onKey(e: KeyboardEvent) {
 		if (e.key === 'Enter') commitAmount();
-		if (e.key === 'Escape') {
-			editing = false;
-			inputValue = ix?.custom_amount_expression ?? (customAmount != null ? String(customAmount) : '');
-		}
+		if (e.key === 'Escape') { editing = false; revertInput(); }
 	}
 
 	function openNote(e: MouseEvent) {
@@ -138,10 +142,11 @@
 
 	function onWindowPointerDown(e: PointerEvent) {
 		if (editing && !(e.target as HTMLElement).closest('.cell-popup')) {
-			if (inputValue.trim() && evaluatedAmount === null) {
+			const trimmed = inputValue.trim();
+			if (trimmed && evaluateExpression(trimmed) === null) {
 				// invalid expression — revert silently
 				editing = false;
-				inputValue = ix?.custom_amount_expression ?? (customAmount != null ? String(customAmount) : '');
+				revertInput();
 			} else {
 				commitAmount();
 			}
@@ -263,8 +268,11 @@
 			bind:this={popupInputEl}
 			type="text"
 			inputmode="decimal"
-			bind:value={inputValue}
-			oninput={(e) => { e.currentTarget.value = e.currentTarget.value.replace(/[^0-9.+* ]/g, ''); inputValue = e.currentTarget.value; }}
+			value={inputValue}
+			oninput={(e) => {
+				inputValue = e.currentTarget.value.replace(/[^0-9.+* ]/g, '');
+				e.currentTarget.value = inputValue;
+			}}
 			onkeydown={onKey}
 			placeholder="e.g. 12.50 + 3*4"
 			class="w-full text-center text-sm font-medium border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
@@ -299,7 +307,7 @@
 				class="flex-1 text-xs bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-2 py-1.5 rounded-lg font-medium"
 			>Save</button>
 			<button
-				onclick={(e) => { e.stopPropagation(); editing = false; inputValue = ix?.custom_amount_expression ?? (customAmount != null ? String(customAmount) : ''); }}
+				onclick={(e) => { e.stopPropagation(); editing = false; revertInput(); }}
 				class="flex-1 text-xs bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-300 px-2 py-1.5 rounded-lg font-medium"
 			>Cancel</button>
 		</div>

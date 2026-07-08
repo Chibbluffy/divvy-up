@@ -392,6 +392,12 @@ export function getEventImage(imageId: string): EventImage | null {
 		.get(imageId) as EventImage | undefined) ?? null;
 }
 
+export function getEventImageForDivvy(imageId: string, eventId: string, divvyId: string): EventImage | null {
+	return (getDb()
+		.prepare(`SELECT ei.* FROM event_images ei JOIN events e ON ei.event_id = e.id WHERE ei.id = ? AND ei.event_id = ? AND e.divvy_id = ?`)
+		.get(imageId, eventId, divvyId) as EventImage | undefined) ?? null;
+}
+
 export function createEventImage(id: string, eventId: string, filename: string, sortOrder: number): EventImage {
 	const now = Date.now();
 	getDb()
